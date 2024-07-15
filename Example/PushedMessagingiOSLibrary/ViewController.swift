@@ -1,10 +1,4 @@
-//
-//  ViewController.swift
-//  PushedMessagingiOSLibrary
-//
-//  Created by Nikanson on 07/15/2024.
-//  Copyright (c) 2024 Nikanson. All rights reserved.
-//
+
 
 import UIKit
 

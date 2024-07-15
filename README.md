@@ -1,29 +1,55 @@
-# PushedMessagingiOSLibrary
+# Pushed Messaging iOS library
 
-[![CI Status](https://img.shields.io/travis/Nikanson/PushedMessagingiOSLibrary.svg?style=flat)](https://travis-ci.org/Nikanson/PushedMessagingiOSLibrary)
-[![Version](https://img.shields.io/cocoapods/v/PushedMessagingiOSLibrary.svg?style=flat)](https://cocoapods.org/pods/PushedMessagingiOSLibrary)
-[![License](https://img.shields.io/cocoapods/l/PushedMessagingiOSLibrary.svg?style=flat)](https://cocoapods.org/pods/PushedMessagingiOSLibrary)
-[![Platform](https://img.shields.io/cocoapods/p/PushedMessagingiOSLibrary.svg?style=flat)](https://cocoapods.org/pods/PushedMessagingiOSLibrary)
+iOS library to use the Pushed Messaging.
 
-## Example
+To learn more about Pushed Messaging, please visit the [Pushed website](https://pushed.ru)
 
-To run the example project, clone the repo, and run `pod install` from the Example directory first.
+## Getting Started
 
-## Requirements
+1. On iOS, make sure you have correctly configured your app to support push notifications:
+You need to add push notifications capability and remote notification background mode.
 
-## Installation
-
-PushedMessagingiOSLibrary is available through [CocoaPods](https://cocoapods.org). To install
-it, simply add the following line to your Podfile:
-
-```ruby
-pod 'PushedMessagingiOSLibrary'
+2. Add this to your podfile: 
+```
+pod 'PushedMessagingiOSLibrary', :git => 'https://github.com/PushedLab/Pushed.Messaging.iOS.Library.git'
 ```
 
-## Author
+3. run "pod install" or "pod update" 
 
-Nikanson, a.nikandrov@multifactor.ru
+### Implementation
 
-## License
+You need to change your AppDelegate
+Example: 
 
-PushedMessagingiOSLibrary is available under the MIT license. See the LICENSE file for more info.
+```swift
+
+import SwiftUI
+import PushedMessagingiOSLibrary
+
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        
+	// Setup library
+	PushedMessagingiOSLibrary.setup(appDel: self)
+        return true
+    }
+    
+    // This function will be called when a push is received
+    public func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+      print("Message: \(userInfo)")
+      completionHandler(.noData)
+    }
+
+    //This function will be called when the Pushed library is successfully initialized
+    @objc
+    public func isPushedInited(didRecievePushedClientToken pushedToken: String) {
+      // To send a message to a specific user, you need to know his Client token.
+      print("Client token: \(pushedToken)")
+
+    }
+}
+
+```
+
+
+

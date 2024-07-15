@@ -1,0 +1,6 @@
+framework module PushedMessagingiOSLibrary {
+  umbrella header "PushedMessagingiOSLibrary-umbrella.h"
+
+  export *
+  module * { export * }
+}

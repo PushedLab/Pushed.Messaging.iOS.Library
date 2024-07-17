@@ -46,6 +46,7 @@
 		607FACEB1AFB9204008FA782 /* Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests.swift; sourceTree = "<group>"; };
 		DACF286D435F3FB0BCBDBDF0 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = LICENSE; path = ../LICENSE; sourceTree = "<group>"; };
 		F2E33970C6A5C5FE200B43FB /* Pods-PushedMessagingiOSLibrary_Example.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PushedMessagingiOSLibrary_Example.release.xcconfig"; path = "Target Support Files/Pods-PushedMessagingiOSLibrary_Example/Pods-PushedMessagingiOSLibrary_Example.release.xcconfig"; sourceTree = "<group>"; };
+		F4CF76592C46A1860088328D /* PushedMessagingiOSLibrary_Example.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PushedMessagingiOSLibrary_Example.entitlements; sourceTree = "<group>"; };
 		FBF0AF446A3FC9D5A8A03991 /* Pods-PushedMessagingiOSLibrary_Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PushedMessagingiOSLibrary_Example.debug.xcconfig"; path = "Target Support Files/Pods-PushedMessagingiOSLibrary_Example/Pods-PushedMessagingiOSLibrary_Example.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -72,6 +73,7 @@
 		607FACC71AFB9204008FA782 = {
 			isa = PBXGroup;
 			children = (
+				F4CF76592C46A1860088328D /* PushedMessagingiOSLibrary_Example.entitlements */,
 				607FACF51AFB993E008FA782 /* Podspec Metadata */,
 				607FACD21AFB9204008FA782 /* Example for PushedMessagingiOSLibrary */,
 				607FACE81AFB9204008FA782 /* Tests */,
@@ -212,10 +214,12 @@
 				TargetAttributes = {
 					607FACCF1AFB9204008FA782 = {
 						CreatedOnToolsVersion = 6.3.1;
+						DevelopmentTeam = TGX69G64CM;
 						LastSwiftMigration = 0900;
 					};
 					607FACE41AFB9204008FA782 = {
 						CreatedOnToolsVersion = 6.3.1;
+						DevelopmentTeam = TGX69G64CM;
 						LastSwiftMigration = 0900;
 						TestTargetID = 607FACCF1AFB9204008FA782;
 					};
@@ -478,11 +482,13 @@
 			baseConfigurationReference = FBF0AF446A3FC9D5A8A03991 /* Pods-PushedMessagingiOSLibrary_Example.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PushedMessagingiOSLibrary_Example.entitlements;
+				DEVELOPMENT_TEAM = TGX69G64CM;
 				INFOPLIST_FILE = PushedMessagingiOSLibrary/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 12;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MODULE_NAME = ExampleApp;
-				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.demo.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = ru.pushed.iOSPushedMessagingExample;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
 				SWIFT_VERSION = 4.0;
@@ -494,11 +500,13 @@
 			baseConfigurationReference = F2E33970C6A5C5FE200B43FB /* Pods-PushedMessagingiOSLibrary_Example.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PushedMessagingiOSLibrary_Example.entitlements;
+				DEVELOPMENT_TEAM = TGX69G64CM;
 				INFOPLIST_FILE = PushedMessagingiOSLibrary/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 12;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MODULE_NAME = ExampleApp;
-				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.demo.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = ru.pushed.iOSPushedMessagingExample;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
 				SWIFT_VERSION = 4.0;
@@ -509,6 +517,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 151AC17AE4D78D6410C5EAD2 /* Pods-PushedMessagingiOSLibrary_Tests.debug.xcconfig */;
 			buildSettings = {
+				DEVELOPMENT_TEAM = TGX69G64CM;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(PLATFORM_DIR)/Developer/Library/Frameworks",
 					"$(inherited)",
@@ -518,8 +527,9 @@
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = Tests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 12;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = ru.pushed.iOSPushedMessagingLibrary;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
 				SWIFT_VERSION = 4.0;
@@ -531,13 +541,15 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 02BE4A3E6E4BFD08F1070BD4 /* Pods-PushedMessagingiOSLibrary_Tests.release.xcconfig */;
 			buildSettings = {
+				DEVELOPMENT_TEAM = TGX69G64CM;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(PLATFORM_DIR)/Developer/Library/Frameworks",
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = Tests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 12;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = ru.pushed.iOSPushedMessagingLibrary;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
 				SWIFT_VERSION = 4.0;

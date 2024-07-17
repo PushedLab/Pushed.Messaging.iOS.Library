@@ -21,13 +21,13 @@ public class PushedMessagingiOSLibrary: NSProxy {
         return pushedToken
     }
     private static func addLog(_ event: String){
-  //#if DEBUG
+  #if DEBUG
         
       print(event)
       let log=UserDefaults.standard.string(forKey: "pushedLog") ?? ""
       UserDefaults.standard.set(log+"\(Date()): \(event)\n", forKey: "pushedLog")
       
-  //#endif
+  #endif
     }
     
     ///Returns the service log(debug only)
@@ -39,7 +39,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
         
         let clientToken=UserDefaults.standard.string(forKey: "clientToken") ?? ""
         let parameters: [String: Any] = ["clientToken": clientToken, "deviceSettings": [["deviceToken": apnsToken, "transportKind": "Apns"]]]
-        let url = URL(string: "https://sub.pushed.dev/tokens")!
+        let url = URL(string: "https://sub.pushed.ru/tokens")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -96,12 +96,16 @@ public class PushedMessagingiOSLibrary: NSProxy {
     }
     
     public static func confirmMessage(messageId: String, application: UIApplication, in object: AnyObject, userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void){
-        let url = URL(string: "https://pub.pushed.dev/\(messageId)?transportKind=Apns")!
+      
+        let clientToken=UserDefaults.standard.string(forKey: "clientToken") ?? ""
+        let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
+        let url = URL(string: "https://pub.pushed.ru/v1/confirm?transportKind=Apns")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Basic \(loginString)", forHTTPHeaderField: "Authorization")
         let task = session.dataTask(with: request) { data, response, error in
             if let error = error {
                 addLog("Post Request Error: \(error.localizedDescription)")
@@ -111,7 +115,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
             guard let httpResponse = response as? HTTPURLResponse,
                   (200...299).contains(httpResponse.statusCode)
             else {
-                addLog("Invalid Response received from the server")
+                addLog("\((response as? HTTPURLResponse)?.statusCode ?? 0): Invalid Response received from the server")
                 PushedMessagingiOSLibrary.redirectMessage(application, in: object, userInfo: userInfo, fetchCompletionHandler: completionHandler)
                 return
             }
@@ -123,7 +127,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
         
     }
     ///Init librarry
-    public static func setup(appDel: UIApplicationDelegate) {
+    public static func setup(_ appDel: UIApplicationDelegate) {
         addLog("Start setup")
         pushedToken=nil
         proxyAppDelegate(appDel)

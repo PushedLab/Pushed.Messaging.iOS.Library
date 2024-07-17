@@ -30,7 +30,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         
 	// Setup library
-	PushedMessagingiOSLibrary.setup(appDel: self)
+	PushedMessagingiOSLibrary.setup(self)
         return true
     }
     

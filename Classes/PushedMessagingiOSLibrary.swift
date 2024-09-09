@@ -7,7 +7,7 @@ private typealias ApplicationApnsToken = @convention(c) (Any, Selector, UIApplic
 private typealias IsPushedInited = @convention(c) (Any, Selector, String) -> Void
 private typealias ApplicationRemoteNotification = @convention(c) (Any, Selector, UIApplication, [AnyHashable : Any], @escaping (UIBackgroundFetchResult) -> Void) -> Void
 
-private var gOriginalAppDelegate: UIApplicationDelegate?
+private var gOriginalAppDelegate: AnyClass?
 private var gAppDelegateSubClass: AnyClass?
 
 
@@ -24,20 +24,20 @@ public class PushedMessagingiOSLibrary: NSProxy {
   #if DEBUG
         
       print(event)
-      let log=UserDefaults.standard.string(forKey: "pushedLog") ?? ""
-      UserDefaults.standard.set(log+"\(Date()): \(event)\n", forKey: "pushedLog")
+      let log=UserDefaults.standard.string(forKey: "pushedMessaging.pushedLog") ?? ""
+      UserDefaults.standard.set(log+"\(Date()): \(event)\n", forKey: "pushedMessaging.pushedLog")
       
   #endif
     }
     
     ///Returns the service log(debug only)
     public static func getLog() -> String {
-        return UserDefaults.standard.string(forKey: "pushedLog") ?? ""
+        return UserDefaults.standard.string(forKey: "pushedMessaging.pushedLog") ?? ""
     }
 
     private static func refreshPushedToken(in object: AnyObject, apnsToken: String){
         
-        let clientToken=UserDefaults.standard.string(forKey: "clientToken") ?? ""
+        let clientToken=UserDefaults.standard.string(forKey: "pushedMessaging.clientToken") ?? ""
         let parameters: [String: Any] = ["clientToken": clientToken, "deviceSettings": [["deviceToken": apnsToken, "transportKind": "Apns"]]]
         let url = URL(string: "https://sub.pushed.ru/tokens")!
         let session = URLSession.shared
@@ -72,7 +72,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
                         addLog("Some wrong with pushed token")
                         return
                     }
-                    UserDefaults.standard.setValue(clientToken, forKey: "clientToken")
+                    UserDefaults.standard.setValue(clientToken, forKey: "pushedMessaging.clientToken")
                     PushedMessagingiOSLibrary.pushedToken=clientToken
                     let methodSelector = #selector(isPushedInited(didRecievePushedClientToken:))
                     guard let method = class_getInstanceMethod(type(of: object), methodSelector) else {
@@ -97,7 +97,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
     
     public static func confirmMessage(messageId: String, application: UIApplication, in object: AnyObject, userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void){
       
-        let clientToken=UserDefaults.standard.string(forKey: "clientToken") ?? ""
+        let clientToken=UserDefaults.standard.string(forKey: "pushedMessaging.clientToken") ?? ""
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
         let url = URL(string: "https://pub.pushed.ru/v1/confirm?transportKind=Apns")!
         let session = URLSession.shared
@@ -126,13 +126,45 @@ public class PushedMessagingiOSLibrary: NSProxy {
         task.resume()
         
     }
+    public static func confirmMessage(_ clickResponse: UNNotificationResponse){
+      
+        var userInfo=clickResponse.notification.request.content.userInfo
+        guard let messageId=userInfo["messageId"] as? String else{
+            return
+        }
+        let clientToken=UserDefaults.standard.string(forKey: "pushedMessaging.clientToken") ?? ""
+        let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
+        let url = URL(string: "https://pub.pushed.ru/v1/confirm?transportKind=Apns")!
+        let session = URLSession.shared
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Basic \(loginString)", forHTTPHeaderField: "Authorization")
+        let task = session.dataTask(with: request) { data, response, error in
+            if let error = error {
+                addLog("Post Request Error: \(error.localizedDescription)")
+                return
+            }
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode)
+            else {
+                addLog("\((response as? HTTPURLResponse)?.statusCode ?? 0): Invalid Response received from the server")
+                return
+            }
+            addLog("Message confirm done")
+        }
+        // perform the task
+        task.resume()
+        
+    }
     ///Init librarry
     public static func setup(_ appDel: UIApplicationDelegate) {
         addLog("Start setup")
         pushedToken=nil
         proxyAppDelegate(appDel)
         let res=requestNotificationPermissions()
-        addLog("Res: \(res)")
+        
     }
     
     static func requestNotificationPermissions() -> Bool {
@@ -167,13 +199,13 @@ public class PushedMessagingiOSLibrary: NSProxy {
         }
 
         gAppDelegateSubClass = createSubClass(from: appDelegate)
-        //self.reassignAppDelegate()
+        
     }
 
     private static func createSubClass(from originalDelegate: UIApplicationDelegate) -> AnyClass? {
-        let originalClass = type(of: originalDelegate)
+        let originalClass = type(of: originalDelegate )
         let newClassName = "\(originalClass)_\(UUID().uuidString)"
-
+        addLog("\(originalClass)")
         guard NSClassFromString(newClassName) == nil else {
             addLog("Cannot create subclass. Subclass already exists.")
             return nil
@@ -219,7 +251,8 @@ public class PushedMessagingiOSLibrary: NSProxy {
             fromClass: PushedMessagingiOSLibrary.self,
             fromSelector: applicationRemoteNotification,
             withOriginalClass: originalClass)
-
+        
+        
     }
     
     
@@ -276,6 +309,8 @@ public class PushedMessagingiOSLibrary: NSProxy {
         originalImplementation(object, methodSelector, application, userInfo,completionHandler)
     }
     
+    
+    
     @objc
     private func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         PushedMessagingiOSLibrary.addLog("Apns token: \(deviceToken.hexString)")
@@ -319,6 +354,8 @@ public class PushedMessagingiOSLibrary: NSProxy {
     private func isPushedInited(didRecievePushedClientToken pushedToken: String) {
         PushedMessagingiOSLibrary.addLog("Pushed token")
     }
+    
+    
 }
 
 extension Data {

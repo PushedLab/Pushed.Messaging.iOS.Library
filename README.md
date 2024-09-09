@@ -28,7 +28,8 @@ import PushedMessagingiOSLibrary
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-        
+
+	UNUserNotificationCenter.current().delegate = self        
 	// Setup library
 	PushedMessagingiOSLibrary.setup(self)
         return true
@@ -47,6 +48,23 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
       print("Client token: \(pushedToken)")
 
     }
+
+    // It is called when you click on the push
+    public func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        let userInfo = response.notification.request.content.userInfo
+        guard userInfo["aps"] != nil else {
+            completionHandler()
+            return
+        }
+        print("Click push: \(userInfo)")
+        print("ActionId: \(response.actionIdentifier)")
+
+        // You need to call to confirm receipt of the message
+        PushedMessagingiOSLibrary.confirmMessage(response)
+        completionHandler()
+
+    }
+
 }
 
 ```

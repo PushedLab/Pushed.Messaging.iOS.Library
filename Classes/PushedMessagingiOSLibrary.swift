@@ -15,19 +15,19 @@ private var gAppDelegateSubClass: AnyClass?
 public class PushedMessagingiOSLibrary: NSProxy {
     
     private static var pushedToken: String?
-    
+    private static let sdkVersion = "iOS Native 1.0.1"
+    private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
+
     /// Return current client token
     public static var clientToken: String? {
         return pushedToken
     }
     private static func addLog(_ event: String){
-  #if DEBUG
-        
-      print(event)
-      let log=UserDefaults.standard.string(forKey: "pushedMessaging.pushedLog") ?? ""
-      UserDefaults.standard.set(log+"\(Date()): \(event)\n", forKey: "pushedMessaging.pushedLog")
-      
-  #endif
+        print(event)
+        if(UserDefaults.standard.bool(forKey: "pushedMessaging.loggerEnabled")){
+            let log=UserDefaults.standard.string(forKey: "pushedMessaging.pushedLog") ?? ""
+            UserDefaults.standard.set(log+"\(Date()): \(event)\n", forKey: "pushedMessaging.pushedLog")
+        }
     }
     
     ///Returns the service log(debug only)
@@ -35,16 +35,73 @@ public class PushedMessagingiOSLibrary: NSProxy {
         return UserDefaults.standard.string(forKey: "pushedMessaging.pushedLog") ?? ""
     }
 
-    private static func refreshPushedToken(in object: AnyObject, apnsToken: String){
+    private static func saveSecToken(_ token:String)->Bool{
+        var query: [CFString: Any] = [kSecClass: kSecClassGenericPassword]
+        query[kSecAttrAccount] = "pushed_token"
+        query[kSecAttrService] = "pushed_messaging_service"
+        query[kSecReturnData] = false
+        query[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlock
+        query[kSecAttrSynchronizable] = false
+        var status = SecItemCopyMatching(query as CFDictionary, nil)
+        query[kSecReturnData] = true
+        if status == errSecSuccess {
+            SecItemDelete(query as CFDictionary)
+        }
+        query[kSecValueData] = token.data(using: .utf8)
+        status = SecItemAdd(query as CFDictionary, nil)
+        return status == errSecSuccess
         
-        let clientToken=UserDefaults.standard.string(forKey: "pushedMessaging.clientToken") ?? ""
-        let parameters: [String: Any] = ["clientToken": clientToken, "deviceSettings": [["deviceToken": apnsToken, "transportKind": "Apns"]]]
-        let url = URL(string: "https://sub.pushed.ru/tokens")!
+    }
+    private static func getSecToken()->String?{
+        var query: [CFString: Any] = [kSecClass: kSecClassGenericPassword]
+        query[kSecAttrAccount] = "pushed_token"
+        query[kSecAttrService] = "pushed_messaging_service"
+        query[kSecReturnData] = true
+        query[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlock
+        query[kSecAttrSynchronizable] = false
+        var ref: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &ref)
+        guard status == errSecSuccess, let data = ref as? Data else {
+            return nil
+        }
+        
+        return String(data: data, encoding: .utf8)
+    }
+
+    private static func refreshPushedToken(in object: AnyObject?, apnsToken: String?){
+        
+        var clientToken = pushedToken
+        if(clientToken == nil) {
+            clientToken = getSecToken()
+        }
+        if(clientToken == nil) {
+            clientToken = UserDefaults.standard.string(forKey: "pushedMessaging.clientToken")
+        }
+        
+        var parameters: [String: Any] = ["clientToken": clientToken ?? ""]
+        if(apnsToken != nil) {
+            parameters["deviceSettings"]=[["deviceToken": apnsToken, "transportKind": "Apns"]]
+        }
+        if(UserDefaults.standard.string(forKey: "pushedMessaging.operatingSystem") != operatingSystem){
+            parameters["operatingSystem"] = operatingSystem
+        }
+        let alerts = UserDefaults.standard.bool(forKey: "pushedMessaging.alertEnabled")
+
+        if(UserDefaults.standard.bool(forKey: "pushedMessaging.alertsNeedUpdate")) {
+            parameters["displayPushNotificationsPermission"] = alerts
+        }
+        if(UserDefaults.standard.string(forKey: "pushedMessaging.sdkVersion") != sdkVersion){
+            parameters["sdkVersion"] = sdkVersion
+        }
+
+        let url = URL(string: "https://sub.multipushed.ru/v2/tokens")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("application/json", forHTTPHeaderField: "Accept")
+        addLog("Post Request body: \(parameters)")
+
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: parameters)
         } catch let error {
@@ -68,20 +125,37 @@ public class PushedMessagingiOSLibrary: NSProxy {
             }
             do {
                 if let jsonResponse = try JSONSerialization.jsonObject(with: responseData, options: .mutableContainers) as? [String: Any] {
-                    guard let clientToken=jsonResponse["token"] as? String else{
-                        addLog("Some wrong with pushed token")
+                    guard let model=jsonResponse["model"] as? [String: Any] else{
+                        self.addLog("Some wrong with model")
                         return
                     }
+                    guard let clientToken=model["clientToken"] as? String else{
+                        self.addLog("Some wrong with clientToken")
+                        return
+                    }
+
+                    let saveRes=saveSecToken(clientToken)
                     UserDefaults.standard.setValue(clientToken, forKey: "pushedMessaging.clientToken")
-                    PushedMessagingiOSLibrary.pushedToken=clientToken
+                    if(pushedToken == nil && UserDefaults.standard.bool(forKey: "pushedMessaging.askPermissions")){
+                        PushedMessagingiOSLibrary.requestNotificationPermissions()
+                    }
+                    if( saveRes) {
+                        pushedToken=clientToken
+                    }
+                    UserDefaults.standard.set(sdkVersion, forKey: "pushedMessaging.sdkVersion")
+                    UserDefaults.standard.set(operatingSystem, forKey: "pushedMessaging.operatingSystem")
+                    UserDefaults.standard.set(false, forKey: "pushedMessaging.alertsNeedUpdate")
+                    if(object == nil) {
+                        return
+                    }
                     let methodSelector = #selector(isPushedInited(didRecievePushedClientToken:))
-                    guard let method = class_getInstanceMethod(type(of: object), methodSelector) else {
+                    guard let method = class_getInstanceMethod(type(of: object!), methodSelector) else {
                         addLog("No original implementation for isPushedInited method. Skipping...")
                         return
                     }
                     let implementationPointer = NSValue(pointer: UnsafePointer(method_getImplementation(method)))
                     let originalImplementation = unsafeBitCast(implementationPointer.pointerValue, to: IsPushedInited.self)
-                    originalImplementation(object, methodSelector, clientToken)
+                    originalImplementation(object!, methodSelector, clientToken)
                 } else {
                     addLog("data maybe corrupted or in wrong format")
                     throw URLError(.badServerResponse)
@@ -97,9 +171,9 @@ public class PushedMessagingiOSLibrary: NSProxy {
     
     public static func confirmMessage(messageId: String, application: UIApplication, in object: AnyObject, userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void){
       
-        let clientToken=UserDefaults.standard.string(forKey: "pushedMessaging.clientToken") ?? ""
+        let clientToken=getSecToken() ?? ""
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://pub.pushed.ru/v1/confirm?transportKind=Apns")!
+        let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -128,13 +202,22 @@ public class PushedMessagingiOSLibrary: NSProxy {
     }
     public static func confirmMessage(_ clickResponse: UNNotificationResponse){
       
-        var userInfo=clickResponse.notification.request.content.userInfo
+        let userInfo=clickResponse.notification.request.content.userInfo
         guard let messageId=userInfo["messageId"] as? String else{
             return
         }
-        let clientToken=UserDefaults.standard.string(forKey: "pushedMessaging.clientToken") ?? ""
+        if let pusheNotification=userInfo["pushedNotification"] as? [AnyHashable: Any] {
+            if let stringUrl = pusheNotification["url"] as? String {
+                if let url = URL(string: stringUrl){
+                    UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                }
+            }
+        }
+
+        confirmMessageAction(messageId, action: "Click")
+        let clientToken=getSecToken() ?? ""
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://pub.pushed.ru/v1/confirm?transportKind=Apns")!
+        let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -158,38 +241,63 @@ public class PushedMessagingiOSLibrary: NSProxy {
         task.resume()
         
     }
+     public static func confirmMessageAction(_ messageId : String, action : String){
+        let clientToken=getSecToken() ?? ""
+        let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
+        let url = URL(string: "https://api.multipushed.ru/v2/mobile-push/confirm-client-interaction?clientInteraction=\(action)")!
+        let session = URLSession.shared
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Basic \(loginString)", forHTTPHeaderField: "Authorization")
+        let task = session.dataTask(with: request) { data, response, error in
+            if let error = error {
+                self.addLog("Post Request Error: \(error.localizedDescription)")
+                return
+            }
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode)
+            else {
+                self.addLog("\((response as? HTTPURLResponse)?.statusCode ?? 0): Invalid Response received from the server")
+                return
+            }
+            self.addLog("Message confirm action: \(action) done")
+        }
+        // perform the task
+        task.resume()
+
+    }
+
     ///Init librarry
-    public static func setup(_ appDel: UIApplicationDelegate) {
+    public static func setup(_ appDel: UIApplicationDelegate,askPermissions: Bool = true, loggerEnabled: Bool = false) {
         addLog("Start setup")
+        UserDefaults.standard.setValue(loggerEnabled, forKey: "pushedMessaging.loggerEnabled")
+        UserDefaults.standard.setValue(askPermissions, forKey: "pushedMessaging.askPermissions")
         pushedToken=nil
         proxyAppDelegate(appDel)
-        let res=requestNotificationPermissions()
+        UIApplication.shared.registerForRemoteNotifications()
         
     }
     
-    static func requestNotificationPermissions() -> Bool {
+    public static func requestNotificationPermissions(){
 
-      var result=true;
       let center = UNUserNotificationCenter.current()
-      let application = UIApplication.shared
-            
+      //let application = UIApplication.shared
+      let alerts = UserDefaults.standard.bool(forKey: "pushedMessaging.alertEnabled")
+
       center.requestAuthorization(options: [.alert, .sound, .badge]) { (granted, error) in
           if let error = error {
               addLog("Err: \(error)")
-              result=false
               return
           }
-          center.getNotificationSettings { (settings) in
-              let map = [
-                  "sound": settings.soundSetting == .enabled,
-                  "badge": settings.badgeSetting == .enabled,
-                  "alert": settings.alertSetting == .enabled,
-              ]
-              addLog("Settings: \(map)")
+          if(granted != alerts){
+              UserDefaults.standard.setValue(granted, forKey: "pushedMessaging.alertEnabled")
+              UserDefaults.standard.setValue(true, forKey: "pushedMessaging.alertsNeedUpdate")
+              refreshPushedToken(in: nil, apnsToken: nil)
           }
       }
-      application.registerForRemoteNotifications()
-      return result
+      //application.registerForRemoteNotifications()
     }
     //------------------------------
     private static func proxyAppDelegate(_ appDelegate: UIApplicationDelegate?) {
@@ -341,6 +449,11 @@ public class PushedMessagingiOSLibrary: NSProxy {
         }
         if let messageId=userInfo["messageId"] as? String {
             PushedMessagingiOSLibrary.addLog("MessageId: \(messageId)")
+            let alertBody = (userInfo["aps"] as? [AnyHashable: Any])?["alert"]
+            let alerts = UserDefaults.standard.bool(forKey: "pushedMessaging.alertEnabled")
+            if(alerts && ((alertBody as? [AnyHashable: Any]) !=  nil ||  (alertBody as? String) != nil)){
+                PushedMessagingiOSLibrary.confirmMessageAction(messageId, action: "Show")
+            }
             PushedMessagingiOSLibrary.confirmMessage(messageId: messageId, application: application, in: self, userInfo: message, fetchCompletionHandler: completionHandler)
         }
         else {

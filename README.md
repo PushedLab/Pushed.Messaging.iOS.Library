@@ -31,7 +31,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
 	UNUserNotificationCenter.current().delegate = self        
 	// Setup library
-	PushedMessagingiOSLibrary.setup(self)
+	// askPermissions - (optional) Ask permissions to display notifications.
+        // loggerEnabled -  (optional) Allows the library to save a local log for debugging purposes.
+	PushedMessagingiOSLibrary.setup(self, askPermissions: true, loggerEnabled: false)
         return true
     }
     

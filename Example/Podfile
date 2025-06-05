@@ -10,4 +10,26 @@ target 'PushedMessagingiOSLibrary_Example' do
 
     
   end
+  
+  # Notification Service Extension Target
+  # Создайте target 'AppNotiService' в Xcode следуя инструкциям в SETUP_EXTENSION.md
+  # Затем раскомментируйте эти строки:
+  #
+  # target 'AppNotiService' do
+  #   # Extension не требует дополнительных pods
+  # end
+end
+
+# Post-install hook для автоматической настройки
+post_install do |installer|
+  puts ""
+  puts "📋 Не забудьте создать Notification Service Extension target!"
+  puts "📖 Инструкции: Example/SETUP_EXTENSION.md"
+  puts ""
+  
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+    end
+  end
 end

@@ -20,11 +20,94 @@
                     <view key="view" contentMode="scaleToFill" id="kh9-bI-dsS">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
-                        <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <subviews>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="pushed-logo" translatesAutoresizingMaskIntoConstraints="NO" id="Qfg-aG-8aT">
+                                <rect key="frame" x="87.5" y="80" width="200" height="100"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="200" id="PJn-8L-Lff"/>
+                                    <constraint firstAttribute="height" constant="100" id="dBz-nU-8TK"/>
+                                </constraints>
+                            </imageView>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Service status" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="8gS-Rb-7eI">
+                                <rect key="frame" x="20" y="220" width="335" height="29"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="24"/>
+                                <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Active" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Kpn-gW-RbY">
+                                <rect key="frame" x="20" y="264" width="335" height="29"/>
+                                <fontDescription key="fontDescription" type="system" weight="medium" pointSize="24"/>
+                                <color key="textColor" systemColor="systemGreenColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Client token" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="gHd-7m-Noc">
+                                <rect key="frame" x="20" y="333" width="335" height="29"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="24"/>
+                                <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Loading..." textAlignment="center" lineBreakMode="tailTruncation" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="wgJ-9M-FMZ">
+                                <rect key="frame" x="20" y="377" width="335" height="19"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="16"/>
+                                <color key="textColor" white="0.66666666666666663" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="B3T-dL-d5e">
+                                <rect key="frame" x="60" y="436" width="255" height="50"/>
+                                <color key="backgroundColor" white="0.33333333329999998" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="50" id="cT7-vI-oBc"/>
+                                </constraints>
+                                <fontDescription key="fontDescription" type="system" weight="medium" pointSize="18"/>
+                                <state key="normal" title="📋 Copy token">
+                                    <color key="titleColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                </state>
+                                <userDefinedRuntimeAttributes>
+                                    <userDefinedRuntimeAttribute type="number" keyPath="layer.cornerRadius">
+                                        <integer key="value" value="8"/>
+                                    </userDefinedRuntimeAttribute>
+                                </userDefinedRuntimeAttributes>
+                                <connections>
+                                    <action selector="copyTokenTapped:" destination="vXZ-lx-hvc" eventType="touchUpInside" id="Xt8-hA-n7h"/>
+                                </connections>
+                            </button>
+                        </subviews>
+                        <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <constraints>
+                            <constraint firstItem="gHd-7m-Noc" firstAttribute="leading" secondItem="kh9-bI-dsS" secondAttribute="leading" constant="20" id="0cK-fN-eWA"/>
+                            <constraint firstItem="8gS-Rb-7eI" firstAttribute="leading" secondItem="kh9-bI-dsS" secondAttribute="leading" constant="20" id="17n-dI-iuy"/>
+                            <constraint firstItem="wgJ-9M-FMZ" firstAttribute="top" secondItem="gHd-7m-Noc" secondAttribute="bottom" constant="15" id="3hB-Vb-HhE"/>
+                            <constraint firstAttribute="trailing" secondItem="gHd-7m-Noc" secondAttribute="trailing" constant="20" id="4gB-bh-Fno"/>
+                            <constraint firstItem="Qfg-aG-8aT" firstAttribute="centerX" secondItem="kh9-bI-dsS" secondAttribute="centerX" id="7Yd-fY-thm"/>
+                            <constraint firstItem="Kpn-gW-RbY" firstAttribute="leading" secondItem="kh9-bI-dsS" secondAttribute="leading" constant="20" id="87r-vR-vEa"/>
+                            <constraint firstItem="B3T-dL-d5e" firstAttribute="leading" secondItem="kh9-bI-dsS" secondAttribute="leading" constant="60" id="8VK-3T-Nro"/>
+                            <constraint firstAttribute="trailing" secondItem="wgJ-9M-FMZ" secondAttribute="trailing" constant="20" id="9zF-w6-6yT"/>
+                            <constraint firstItem="Kpn-gW-RbY" firstAttribute="top" secondItem="8gS-Rb-7eI" secondAttribute="bottom" constant="15" id="Agd-h6-z4D"/>
+                            <constraint firstItem="gHd-7m-Noc" firstAttribute="top" secondItem="Kpn-gW-RbY" secondAttribute="bottom" constant="40" id="BTU-vr-xmd"/>
+                            <constraint firstItem="8gS-Rb-7eI" firstAttribute="top" secondItem="Qfg-aG-8aT" secondAttribute="bottom" constant="40" id="Lte-8k-5O9"/>
+                            <constraint firstAttribute="trailing" secondItem="B3T-dL-d5e" secondAttribute="trailing" constant="60" id="MjN-9o-x2U"/>
+                            <constraint firstItem="wgJ-9M-FMZ" firstAttribute="leading" secondItem="kh9-bI-dsS" secondAttribute="leading" constant="20" id="QFW-4e-L5h"/>
+                            <constraint firstAttribute="trailing" secondItem="8gS-Rb-7eI" secondAttribute="trailing" constant="20" id="TNX-gU-hBN"/>
+                            <constraint firstItem="B3T-dL-d5e" firstAttribute="top" secondItem="wgJ-9M-FMZ" secondAttribute="bottom" constant="40" id="cQG-pL-vwm"/>
+                            <constraint firstItem="Qfg-aG-8aT" firstAttribute="top" secondItem="jyV-Pf-zRb" secondAttribute="bottom" constant="60" id="kN6-iP-hIK"/>
+                            <constraint firstAttribute="trailing" secondItem="Kpn-gW-RbY" secondAttribute="trailing" constant="20" id="xsH-8M-Nit"/>
+                        </constraints>
                     </view>
+                    <connections>
+                        <outlet property="clientTokenLabel" destination="wgJ-9M-FMZ" id="CnS-dv-r7H"/>
+                        <outlet property="copyTokenButton" destination="B3T-dL-d5e" id="f3P-c5-NLr"/>
+                        <outlet property="logoImageView" destination="Qfg-aG-8aT" id="8Ug-gd-0Ov"/>
+                        <outlet property="serviceStatusLabel" destination="Kpn-gW-RbY" id="VWp-Aw-KWN"/>
+                    </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="x5A-6p-PRh" sceneMemberID="firstResponder"/>
             </objects>
         </scene>
     </scenes>
+    <resources>
+        <image name="pushed-logo" width="1024" height="1024"/>
+        <systemColor name="systemGreenColor">
+            <color red="0.20392156862745098" green="0.7803921568627451" blue="0.34901960784313724" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </systemColor>
+    </resources>
 </document>

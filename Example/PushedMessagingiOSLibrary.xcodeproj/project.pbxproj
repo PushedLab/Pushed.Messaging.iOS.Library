@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 46;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -15,6 +15,7 @@
 		607FACDD1AFB9204008FA782 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDC1AFB9204008FA782 /* Images.xcassets */; };
 		607FACE01AFB9204008FA782 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDE1AFB9204008FA782 /* LaunchScreen.xib */; };
 		607FACEC1AFB9204008FA782 /* Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACEB1AFB9204008FA782 /* Tests.swift */; };
+		A89CA3D82DF6F0ED00AE7760 /* AppNotiService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A89CA3D02DF6F0ED00AE7760 /* AppNotiService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -25,7 +26,28 @@
 			remoteGlobalIDString = 607FACCF1AFB9204008FA782;
 			remoteInfo = PushedMessagingiOSLibrary;
 		};
+		A89CA3D62DF6F0ED00AE7760 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 607FACC81AFB9204008FA782 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A89CA3CF2DF6F0ED00AE7760;
+			remoteInfo = AppNotiService;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A89CA39A2DF6EF1700AE7760 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A89CA3D82DF6F0ED00AE7760 /* AppNotiService.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		02BE4A3E6E4BFD08F1070BD4 /* Pods-PushedMessagingiOSLibrary_Tests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PushedMessagingiOSLibrary_Tests.release.xcconfig"; path = "Target Support Files/Pods-PushedMessagingiOSLibrary_Tests/Pods-PushedMessagingiOSLibrary_Tests.release.xcconfig"; sourceTree = "<group>"; };
@@ -44,11 +66,26 @@
 		607FACE51AFB9204008FA782 /* PushedMessagingiOSLibrary_Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PushedMessagingiOSLibrary_Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACEA1AFB9204008FA782 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		607FACEB1AFB9204008FA782 /* Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests.swift; sourceTree = "<group>"; };
+		A89CA3D02DF6F0ED00AE7760 /* AppNotiService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AppNotiService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		DACF286D435F3FB0BCBDBDF0 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = LICENSE; path = ../LICENSE; sourceTree = "<group>"; };
 		F2E33970C6A5C5FE200B43FB /* Pods-PushedMessagingiOSLibrary_Example.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PushedMessagingiOSLibrary_Example.release.xcconfig"; path = "Target Support Files/Pods-PushedMessagingiOSLibrary_Example/Pods-PushedMessagingiOSLibrary_Example.release.xcconfig"; sourceTree = "<group>"; };
 		F4CF76592C46A1860088328D /* PushedMessagingiOSLibrary_Example.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PushedMessagingiOSLibrary_Example.entitlements; sourceTree = "<group>"; };
 		FBF0AF446A3FC9D5A8A03991 /* Pods-PushedMessagingiOSLibrary_Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PushedMessagingiOSLibrary_Example.debug.xcconfig"; path = "Target Support Files/Pods-PushedMessagingiOSLibrary_Example/Pods-PushedMessagingiOSLibrary_Example.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A89CA3D92DF6F0ED00AE7760 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A89CA3CF2DF6F0ED00AE7760 /* AppNotiService */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		A89CA3D12DF6F0ED00AE7760 /* AppNotiService */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A89CA3D92DF6F0ED00AE7760 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = AppNotiService; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		607FACCD1AFB9204008FA782 /* Frameworks */ = {
@@ -67,6 +104,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A89CA3CD2DF6F0ED00AE7760 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -77,6 +121,7 @@
 				607FACF51AFB993E008FA782 /* Podspec Metadata */,
 				607FACD21AFB9204008FA782 /* Example for PushedMessagingiOSLibrary */,
 				607FACE81AFB9204008FA782 /* Tests */,
+				A89CA3D12DF6F0ED00AE7760 /* AppNotiService */,
 				607FACD11AFB9204008FA782 /* Products */,
 				A34693535452FA857DDBF57B /* Pods */,
 				68F78415B1CB3EE7FA8F9D2B /* Frameworks */,
@@ -88,6 +133,7 @@
 			children = (
 				607FACD01AFB9204008FA782 /* PushedMessagingiOSLibrary_Example.app */,
 				607FACE51AFB9204008FA782 /* PushedMessagingiOSLibrary_Tests.xctest */,
+				A89CA3D02DF6F0ED00AE7760 /* AppNotiService.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -173,10 +219,12 @@
 				607FACCD1AFB9204008FA782 /* Frameworks */,
 				607FACCE1AFB9204008FA782 /* Resources */,
 				B6935E622F4D77AE8390D152 /* [CP] Embed Pods Frameworks */,
+				A89CA39A2DF6EF1700AE7760 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A89CA3D72DF6F0ED00AE7760 /* PBXTargetDependency */,
 			);
 			name = PushedMessagingiOSLibrary_Example;
 			productName = PushedMessagingiOSLibrary;
@@ -202,6 +250,28 @@
 			productReference = 607FACE51AFB9204008FA782 /* PushedMessagingiOSLibrary_Tests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		A89CA3CF2DF6F0ED00AE7760 /* AppNotiService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A89CA3DA2DF6F0ED00AE7760 /* Build configuration list for PBXNativeTarget "AppNotiService" */;
+			buildPhases = (
+				A89CA3CC2DF6F0ED00AE7760 /* Sources */,
+				A89CA3CD2DF6F0ED00AE7760 /* Frameworks */,
+				A89CA3CE2DF6F0ED00AE7760 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A89CA3D12DF6F0ED00AE7760 /* AppNotiService */,
+			);
+			name = AppNotiService;
+			packageProductDependencies = (
+			);
+			productName = AppNotiService;
+			productReference = A89CA3D02DF6F0ED00AE7760 /* AppNotiService.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -223,6 +293,9 @@
 						LastSwiftMigration = 0900;
 						TestTargetID = 607FACCF1AFB9204008FA782;
 					};
+					A89CA3CF2DF6F0ED00AE7760 = {
+						CreatedOnToolsVersion = 16.4;
+					};
 				};
 			};
 			buildConfigurationList = 607FACCB1AFB9204008FA782 /* Build configuration list for PBXProject "PushedMessagingiOSLibrary" */;
@@ -241,6 +314,7 @@
 			targets = (
 				607FACCF1AFB9204008FA782 /* PushedMessagingiOSLibrary_Example */,
 				607FACE41AFB9204008FA782 /* PushedMessagingiOSLibrary_Tests */,
+				A89CA3CF2DF6F0ED00AE7760 /* AppNotiService */,
 			);
 		};
 /* End PBXProject section */
@@ -257,6 +331,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		607FACE31AFB9204008FA782 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A89CA3CE2DF6F0ED00AE7760 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -348,6 +429,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A89CA3CC2DF6F0ED00AE7760 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -355,6 +443,11 @@
 			isa = PBXTargetDependency;
 			target = 607FACCF1AFB9204008FA782 /* PushedMessagingiOSLibrary_Example */;
 			targetProxy = 607FACE61AFB9204008FA782 /* PBXContainerItemProxy */;
+		};
+		A89CA3D72DF6F0ED00AE7760 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A89CA3CF2DF6F0ED00AE7760 /* AppNotiService */;
+			targetProxy = A89CA3D62DF6F0ED00AE7760 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -472,7 +565,8 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 9.3;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
-				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -486,7 +580,10 @@
 				DEVELOPMENT_TEAM = TGX69G64CM;
 				INFOPLIST_FILE = PushedMessagingiOSLibrary/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 12;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				MODULE_NAME = ExampleApp;
 				PRODUCT_BUNDLE_IDENTIFIER = ru.pushed.iOSPushedMessagingExample;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -504,7 +601,10 @@
 				DEVELOPMENT_TEAM = TGX69G64CM;
 				INFOPLIST_FILE = PushedMessagingiOSLibrary/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 12;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				MODULE_NAME = ExampleApp;
 				PRODUCT_BUNDLE_IDENTIFIER = ru.pushed.iOSPushedMessagingExample;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -528,7 +628,11 @@
 				);
 				INFOPLIST_FILE = Tests/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 12;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = ru.pushed.iOSPushedMessagingLibrary;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
@@ -548,12 +652,98 @@
 				);
 				INFOPLIST_FILE = Tests/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 12;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = ru.pushed.iOSPushedMessagingLibrary;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
 				SWIFT_VERSION = 4.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PushedMessagingiOSLibrary_Example.app/PushedMessagingiOSLibrary_Example";
+			};
+			name = Release;
+		};
+		A89CA3DB2DF6F0ED00AE7760 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = AppNotiService/AppNotiService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = TGX69G64CM;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AppNotiService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AppNotiService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 CocoaPods. All rights reserved.";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = ru.pushed.iOSPushedMessagingExample.AppNotiService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A89CA3DC2DF6F0ED00AE7760 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = AppNotiService/AppNotiService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TGX69G64CM;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AppNotiService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AppNotiService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 CocoaPods. All rights reserved.";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = ru.pushed.iOSPushedMessagingExample.AppNotiService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -583,6 +773,15 @@
 			buildConfigurations = (
 				607FACF31AFB9204008FA782 /* Debug */,
 				607FACF41AFB9204008FA782 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A89CA3DA2DF6F0ED00AE7760 /* Build configuration list for PBXNativeTarget "AppNotiService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A89CA3DB2DF6F0ED00AE7760 /* Debug */,
+				A89CA3DC2DF6F0ED00AE7760 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

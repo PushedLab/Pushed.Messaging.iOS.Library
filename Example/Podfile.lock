@@ -1,5 +1,5 @@
 PODS:
-  - PushedMessagingiOSLibrary (0.1.0)
+  - PushedMessagingiOSLibrary (1.0.1)
 
 DEPENDENCIES:
   - PushedMessagingiOSLibrary (from `../`)
@@ -9,8 +9,8 @@ EXTERNAL SOURCES:
     :path: "../"
 
 SPEC CHECKSUMS:
-  PushedMessagingiOSLibrary: 1a5d3672e2566537c827d6556e245daec35002b0
+  PushedMessagingiOSLibrary: 4a2d836e80d5e3cdc6984962f66dffe392913207
 
-PODFILE CHECKSUM: c1d9b93c59caa7fa73a66416d15a228b6e7b15e3
+PODFILE CHECKSUM: 35e3947df2210bf5874a0846e8be8aa35de5a5dd
 
-COCOAPODS: 1.13.0
+COCOAPODS: 1.16.2

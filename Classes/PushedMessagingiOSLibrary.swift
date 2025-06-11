@@ -52,16 +52,14 @@ public class PushedMessagingiOSLibrary: NSProxy {
     private static var pushedToken: String?
     private static let sdkVersion = "iOS Native 1.0.1"
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
-    private static var appGroupIdentifier = "group.pushed.example"
     @available(iOS 13.0, *)
     private static var webSocketClient: PushedWebSocketClient?
-
-    /// Configure app group identifier for sharing data with extensions
-    /// Must be called before setup() if you want to use a different app group
-    public static func configureAppGroup(_ identifier: String) {
-        appGroupIdentifier = identifier
-        addLog("App group identifier set to: \(identifier)")
-    }
+    
+    // Store notification observer tokens for proper cleanup
+    private static var backgroundObserver: NSObjectProtocol?
+    private static var foregroundObserver: NSObjectProtocol?
+    private static var activeObserver: NSObjectProtocol?
+    private static var resignActiveObserver: NSObjectProtocol?
 
     /// Set to true if you have a Notification Service Extension that handles message confirmation
     /// This will prevent duplicate confirmation requests from the main app
@@ -79,6 +77,11 @@ public class PushedMessagingiOSLibrary: NSProxy {
         } else {
             return .disconnected
         }
+    }
+    
+    /// Return APNS enabled status
+    public static var isAPNSEnabled: Bool {
+        return UserDefaults.standard.bool(forKey: "pushedMessaging.apnsEnabled")
     }
     
     /// WebSocket status change callback
@@ -110,7 +113,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
     }
 
     /// Clear Pushed token for testing purposes
-    /// This will remove the token from both Keychain and UserDefaults
+    /// This will remove the token from Keychain
     public static func clearTokenForTesting() {
         addLog("Clearing Pushed token for testing")
         
@@ -128,16 +131,6 @@ public class PushedMessagingiOSLibrary: NSProxy {
             addLog("Token not found in Keychain")
         } else {
             addLog("Failed to remove token from Keychain: \(status)")
-        }
-        
-        // Remove from UserDefaults
-        UserDefaults.standard.removeObject(forKey: "pushedMessaging.clientToken")
-        
-        // Remove from shared UserDefaults
-        if let sharedDefaults = UserDefaults(suiteName: appGroupIdentifier) {
-            sharedDefaults.removeObject(forKey: "clientToken")
-            sharedDefaults.synchronize()
-            addLog("Token removed from shared UserDefaults")
         }
         
         // Clear in-memory token
@@ -184,45 +177,30 @@ public class PushedMessagingiOSLibrary: NSProxy {
         return String(data: data, encoding: .utf8)
     }
 
-    /// Save token to shared UserDefaults for extension access
-    private static func saveTokenToSharedDefaults(_ token: String) {
-        guard let sharedDefaults = UserDefaults(suiteName: appGroupIdentifier) else {
-            addLog("Failed to access shared UserDefaults with app group: \(appGroupIdentifier)")
-            return
-        }
-        
-        sharedDefaults.set(token, forKey: "clientToken")
-        sharedDefaults.synchronize()
-        addLog("Token saved to shared UserDefaults for extension access")
-    }
-    
-    /// Get token from shared UserDefaults
-    private static func getTokenFromSharedDefaults() -> String? {
-        guard let sharedDefaults = UserDefaults(suiteName: appGroupIdentifier) else {
-            addLog("Failed to access shared UserDefaults with app group: \(appGroupIdentifier)")
-            return nil
-        }
-        
-        return sharedDefaults.string(forKey: "clientToken")
-    }
-
     private static func refreshPushedToken(in object: AnyObject?, apnsToken: String?){
         
         var clientToken = pushedToken
         if(clientToken == nil) {
             clientToken = getSecToken()
         }
-        if(clientToken == nil) {
-            clientToken = getTokenFromSharedDefaults()
-        }
-        if(clientToken == nil) {
-            clientToken = UserDefaults.standard.string(forKey: "pushedMessaging.clientToken")
-        }
         
         var parameters: [String: Any] = ["clientToken": clientToken ?? ""]
-        if(apnsToken != nil) {
-            parameters["deviceSettings"]=[["deviceToken": apnsToken, "transportKind": "Apns"]]
+        
+        // Include deviceSettings based on APNS enabled state and token availability
+        if let apnsToken = apnsToken, isAPNSEnabled {
+            // APNS mode - include APNS token
+            parameters["deviceSettings"] = [["deviceToken": apnsToken, "transportKind": "Apns"]]
+            addLog("Including APNS token in deviceSettings")
+        } else {
+            // WebSocket-only mode or no APNS token - send empty deviceSettings
+            parameters["deviceSettings"] = []
+            if isAPNSEnabled {
+                addLog("APNS enabled but no token provided - sending empty deviceSettings")
+            } else {
+                addLog("APNS disabled - sending empty deviceSettings for WebSocket-only mode")
+            }
         }
+        
         if(UserDefaults.standard.string(forKey: "pushedMessaging.operatingSystem") != operatingSystem){
             parameters["operatingSystem"] = operatingSystem
         }
@@ -276,9 +254,6 @@ public class PushedMessagingiOSLibrary: NSProxy {
                     }
 
                     let saveRes=saveSecToken(clientToken)
-                    UserDefaults.standard.setValue(clientToken, forKey: "pushedMessaging.clientToken")
-                    // Save to shared UserDefaults for extension access
-                    saveTokenToSharedDefaults(clientToken)
                     
                     if(pushedToken == nil && UserDefaults.standard.bool(forKey: "pushedMessaging.askPermissions")){
                         PushedMessagingiOSLibrary.requestNotificationPermissions()
@@ -327,7 +302,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
     
     public static func confirmMessage(messageId: String, application: UIApplication, in object: AnyObject, userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void){
       
-        let clientToken = clientToken ?? getSecToken() ?? getTokenFromSharedDefaults() ?? ""
+        let clientToken = clientToken ?? getSecToken() ?? ""
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
         let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
@@ -371,7 +346,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
         }
 
         confirmMessageAction(messageId, action: "Click")
-        let clientToken = clientToken ?? getSecToken() ?? getTokenFromSharedDefaults() ?? ""
+        let clientToken = clientToken ?? getSecToken() ?? ""
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
         let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
@@ -398,7 +373,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
         
     }
      public static func confirmMessageAction(_ messageId : String, action : String){
-        let clientToken = clientToken ?? getSecToken() ?? getTokenFromSharedDefaults() ?? ""
+        let clientToken = clientToken ?? getSecToken() ?? ""
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
         let url = URL(string: "https://api.multipushed.ru/v2/mobile-push/confirm-client-interaction?clientInteraction=\(action)")!
         let session = URLSession.shared
@@ -428,13 +403,119 @@ public class PushedMessagingiOSLibrary: NSProxy {
     ///Init librarry
     public static func setup(_ appDel: UIApplicationDelegate,askPermissions: Bool = true, loggerEnabled: Bool = false) {
         addLog("Start setup")
-        
         UserDefaults.standard.setValue(loggerEnabled, forKey: "pushedMessaging.loggerEnabled")
         UserDefaults.standard.setValue(askPermissions, forKey: "pushedMessaging.askPermissions")
+        
+        // Enable APNS by default if not previously set
+        if UserDefaults.standard.object(forKey: "pushedMessaging.apnsEnabled") == nil {
+            UserDefaults.standard.set(true, forKey: "pushedMessaging.apnsEnabled")
+        }
+        
         pushedToken=nil
         proxyAppDelegate(appDel)
-        UIApplication.shared.registerForRemoteNotifications()
         
+        // Register for remote notifications if APNS is enabled
+        if isAPNSEnabled {
+            UIApplication.shared.registerForRemoteNotifications()
+            addLog("APNS registration enabled - registering for remote notifications")
+        } else {
+            addLog("APNS registration disabled - skipping remote notifications registration")
+            // Still request pushed token for WebSocket-only mode
+            refreshPushedToken(in: appDel, apnsToken: nil)
+        }
+        
+        // Setup application state observers for WebSocket management
+        setupApplicationStateObservers()
+    }
+    
+    /// Setup observers for application state changes
+    private static func setupApplicationStateObservers() {
+        backgroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            addLog("Application entered background - managing WebSocket connection")
+            handleAppDidEnterBackground()
+        }
+        
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            addLog("Application will enter foreground - restoring WebSocket connection")
+            handleAppWillEnterForeground()
+        }
+        
+        activeObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            addLog("Application became active - ensuring WebSocket connection")
+            handleAppDidBecomeActive()
+        }
+        
+        resignActiveObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            addLog("Application will resign active - preparing WebSocket for background")
+            handleAppWillResignActive()
+        }
+    }
+    
+    /// Handle application entering background
+    private static func handleAppDidEnterBackground() {
+        if #available(iOS 13.0, *) {
+            if UserDefaults.standard.bool(forKey: "pushedMessaging.webSocketEnabled") {
+                // Don't completely stop WebSocket, but prepare for background
+                webSocketClient?.prepareForBackground()
+                addLog("WebSocket prepared for background mode")
+            }
+        }
+    }
+    
+    /// Handle application entering foreground
+    private static func handleAppWillEnterForeground() {
+        if #available(iOS 13.0, *) {
+            if UserDefaults.standard.bool(forKey: "pushedMessaging.webSocketEnabled") && clientToken != nil {
+                // Restore WebSocket connection
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if let client = webSocketClient {
+                        client.restoreFromBackground()
+                        addLog("WebSocket restored from background")
+                    } else {
+                        // WebSocket was completely lost, restart it
+                        startWebSocketConnection()
+                        addLog("WebSocket restarted after background")
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Handle application becoming active
+    private static func handleAppDidBecomeActive() {
+        if #available(iOS 13.0, *) {
+            if UserDefaults.standard.bool(forKey: "pushedMessaging.webSocketEnabled") && clientToken != nil {
+                // Ensure WebSocket is running when app becomes fully active
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    if webSocketClient?.status != .connected {
+                        addLog("WebSocket not connected when app became active, restarting")
+                        restartWebSocketConnection()
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Handle application resigning active
+    private static func handleAppWillResignActive() {
+        // App is about to become inactive (could be going to background or being interrupted)
+        addLog("Application will resign active")
     }
     
     /// Start WebSocket connection for real-time push messages
@@ -504,24 +585,103 @@ public class PushedMessagingiOSLibrary: NSProxy {
         }
     }
     
+    /// Enable APNS push notifications
+    public static func enableAPNS() {
+        addLog("APNS enabled")
+        UserDefaults.standard.set(true, forKey: "pushedMessaging.apnsEnabled")
+        
+        // Register for remote notifications if not already registered
+        DispatchQueue.main.async {
+            UIApplication.shared.registerForRemoteNotifications()
+        }
+    }
+    
+    /// Disable APNS push notifications
+    public static func disableAPNS() {
+        addLog("APNS disabled")
+        UserDefaults.standard.set(false, forKey: "pushedMessaging.apnsEnabled")
+        
+        // Unregister from remote notifications
+        DispatchQueue.main.async {
+            UIApplication.shared.unregisterForRemoteNotifications()
+        }
+    }
+    
+    /// Manually check WebSocket connection health
+    @available(iOS 13.0, *)
+    public static func checkWebSocketHealth() {
+        addLog("Checking WebSocket connection health")
+        webSocketClient?.checkConnectionState()
+    }
+    
+    /// Get detailed WebSocket diagnostics
+    @available(iOS 13.0, *)
+    public static func getWebSocketDiagnostics() -> String {
+        var diagnostics = "=== WebSocket Diagnostics ===\n"
+        diagnostics += "Timestamp: \(Date())\n"
+        diagnostics += "WebSocket Enabled: \(UserDefaults.standard.bool(forKey: "pushedMessaging.webSocketEnabled"))\n"
+        diagnostics += "Client Token Available: \(clientToken != nil)\n"
+        diagnostics += "Status: \(webSocketStatus.rawValue)\n"
+        
+        if let client = webSocketClient {
+            diagnostics += "Client Instance: Available\n"
+        } else {
+            diagnostics += "Client Instance: Nil\n"
+        }
+        
+        diagnostics += "iOS Version: \(UIDevice.current.systemVersion)\n"
+        diagnostics += "SDK Version: \(sdkVersion)\n"
+        diagnostics += "App State: \(UIApplication.shared.applicationState.rawValue)\n"
+        
+        return diagnostics
+    }
+    
+    /// Clean up resources and observers
+    public static func cleanup() {
+        addLog("Cleaning up PushedMessagingiOSLibrary resources")
+        
+        // Remove notification observers
+        if let backgroundObserver = backgroundObserver {
+            NotificationCenter.default.removeObserver(backgroundObserver)
+        }
+        if let foregroundObserver = foregroundObserver {
+            NotificationCenter.default.removeObserver(foregroundObserver)
+        }
+        if let activeObserver = activeObserver {
+            NotificationCenter.default.removeObserver(activeObserver)
+        }
+        if let resignActiveObserver = resignActiveObserver {
+            NotificationCenter.default.removeObserver(resignActiveObserver)
+        }
+        
+        // Stop WebSocket
+        if #available(iOS 13.0, *) {
+            stopWebSocketConnection()
+        }
+    }
+    
     public static func requestNotificationPermissions(){
+        // Only request permissions if APNS is enabled
+        guard isAPNSEnabled else {
+            addLog("APNS disabled - skipping notification permissions request")
+            return
+        }
+        
+        let center = UNUserNotificationCenter.current()
+        let alerts = UserDefaults.standard.bool(forKey: "pushedMessaging.alertEnabled")
 
-      let center = UNUserNotificationCenter.current()
-      //let application = UIApplication.shared
-      let alerts = UserDefaults.standard.bool(forKey: "pushedMessaging.alertEnabled")
-
-      center.requestAuthorization(options: [.alert, .sound, .badge]) { (granted, error) in
-          if let error = error {
-              addLog("Err: \(error)")
-              return
-          }
-          if(granted != alerts){
-              UserDefaults.standard.setValue(granted, forKey: "pushedMessaging.alertEnabled")
-              UserDefaults.standard.setValue(true, forKey: "pushedMessaging.alertsNeedUpdate")
-              refreshPushedToken(in: nil, apnsToken: nil)
-          }
-      }
-      //application.registerForRemoteNotifications()
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { (granted, error) in
+            if let error = error {
+                addLog("Notification permissions error: \(error)")
+                return
+            }
+            if(granted != alerts){
+                UserDefaults.standard.setValue(granted, forKey: "pushedMessaging.alertEnabled")
+                UserDefaults.standard.setValue(true, forKey: "pushedMessaging.alertsNeedUpdate")
+                refreshPushedToken(in: nil, apnsToken: nil)
+            }
+            addLog("Notification permissions granted: \(granted)")
+        }
     }
     //------------------------------
     private static func proxyAppDelegate(_ appDelegate: UIApplicationDelegate?) {
@@ -645,8 +805,17 @@ public class PushedMessagingiOSLibrary: NSProxy {
     
     @objc
     private func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        PushedMessagingiOSLibrary.addLog("Apns token: \(deviceToken.hexString)")
-        PushedMessagingiOSLibrary.refreshPushedToken(in: self, apnsToken: deviceToken.hexString)
+        PushedMessagingiOSLibrary.addLog("APNS token received")
+        
+        // Only process APNS token if APNS is enabled
+        if PushedMessagingiOSLibrary.isAPNSEnabled {
+            PushedMessagingiOSLibrary.addLog("APNS enabled - processing token")
+            PushedMessagingiOSLibrary.refreshPushedToken(in: self, apnsToken: deviceToken.hexString)
+        } else {
+            PushedMessagingiOSLibrary.addLog("APNS disabled - getting client token without APNS token")
+            PushedMessagingiOSLibrary.refreshPushedToken(in: self, apnsToken: nil)
+        }
+        
         let methodSelector = #selector(application(_:didRegisterForRemoteNotificationsWithDeviceToken:))
         guard let method = class_getInstanceMethod(type(of: self), methodSelector) else {
             print("No original implementation for didRegisterForRemoteNotificationsWithDeviceToken method. Skipping...")
@@ -659,32 +828,41 @@ public class PushedMessagingiOSLibrary: NSProxy {
 
     @objc
     private func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
-        PushedMessagingiOSLibrary.addLog("Message: \(userInfo)")
-        var message=userInfo
-        if let data=userInfo["data"] as? String {
-            do{
-                if let jsonResponse = try JSONSerialization.jsonObject(with: data.data(using: .utf8)!, options: .mutableContainers) as? [AnyHashable: Any] {
-                    message["data"]=jsonResponse
-                    PushedMessagingiOSLibrary.addLog("Data: \(jsonResponse)")
-                }
-            } catch {
-                PushedMessagingiOSLibrary.addLog(" Data is String")
-            }
-        }
-        if let messageId=userInfo["messageId"] as? String {
-            PushedMessagingiOSLibrary.addLog("MessageId: \(messageId)")
-            let alertBody = (userInfo["aps"] as? [AnyHashable: Any])?["alert"]
-            let alerts = UserDefaults.standard.bool(forKey: "pushedMessaging.alertEnabled")
-            if(alerts && ((alertBody as? [AnyHashable: Any]) !=  nil ||  (alertBody as? String) != nil)){
-                PushedMessagingiOSLibrary.confirmMessageAction(messageId, action: "Show")
-            }
-            PushedMessagingiOSLibrary.confirmMessage(messageId: messageId, application: application, in: self, userInfo: message, fetchCompletionHandler: completionHandler)
-        }
-        else {
-            PushedMessagingiOSLibrary.addLog("No messageId")
-            PushedMessagingiOSLibrary.redirectMessage(application, in: self, userInfo: message, fetchCompletionHandler: completionHandler)
+        PushedMessagingiOSLibrary.addLog("Received push notification: \(userInfo)")
+        
+        // Only process push notification if APNS is enabled
+        guard PushedMessagingiOSLibrary.isAPNSEnabled else {
+            PushedMessagingiOSLibrary.addLog("APNS disabled - skipping push notification processing")
+            PushedMessagingiOSLibrary.redirectMessage(application, in: self, userInfo: userInfo, fetchCompletionHandler: completionHandler)
+            return
         }
         
+        var message = userInfo
+        if let data = userInfo["data"] as? String {
+            do {
+                if let jsonResponse = try JSONSerialization.jsonObject(with: data.data(using: .utf8)!, options: .mutableContainers) as? [AnyHashable: Any] {
+                    message["data"] = jsonResponse
+                    PushedMessagingiOSLibrary.addLog("Parsed data: \(jsonResponse)")
+                }
+            } catch {
+                PushedMessagingiOSLibrary.addLog("Data is String, not JSON")
+            }
+        }
+        
+        if let messageId = userInfo["messageId"] as? String {
+            PushedMessagingiOSLibrary.addLog("Processing message with ID: \(messageId)")
+            let alertBody = (userInfo["aps"] as? [AnyHashable: Any])?["alert"]
+            let alerts = UserDefaults.standard.bool(forKey: "pushedMessaging.alertEnabled")
+            
+            if alerts && ((alertBody as? [AnyHashable: Any]) != nil || (alertBody as? String) != nil) {
+                PushedMessagingiOSLibrary.confirmMessageAction(messageId, action: "Show")
+            }
+            
+            PushedMessagingiOSLibrary.confirmMessage(messageId: messageId, application: application, in: self, userInfo: message, fetchCompletionHandler: completionHandler)
+        } else {
+            PushedMessagingiOSLibrary.addLog("No messageId found in push notification")
+            PushedMessagingiOSLibrary.redirectMessage(application, in: self, userInfo: message, fetchCompletionHandler: completionHandler)
+        }
     }
     
     @objc
@@ -703,323 +881,3 @@ extension Data {
     }
 }
 
-// MARK: - WebSocket Client
-@available(iOS 13.0, *)
-public class PushedWebSocketClient: NSObject {
-    
-    private var webSocketTask: URLSessionWebSocketTask?
-    private var urlSession: URLSession?
-    private var isConnected = false
-    private var shouldReconnect = true
-    private var reconnectTimer: Timer?
-    private var token: String?
-    public private(set) var status: PushedServiceStatus = .disconnected
-    private var lastMessageId: String?
-    
-    public var onStatusChange: ((PushedServiceStatus) -> Void)?
-    public var onMessageReceived: ((String) -> Bool)?
-    
-    private static func addLog(_ event: String) {
-        print("WebSocket: \(event)")
-        if UserDefaults.standard.bool(forKey: "pushedMessaging.loggerEnabled") {
-            let log = UserDefaults.standard.string(forKey: "pushedMessaging.pushedLog") ?? ""
-            UserDefaults.standard.set(log + "\(Date()): WebSocket: \(event)\n", forKey: "pushedMessaging.pushedLog")
-        }
-    }
-    
-    public init(token: String) {
-        super.init()
-        self.token = token
-        self.lastMessageId = UserDefaults.standard.string(forKey: "pushedMessaging.lastMessageId")
-        setupSession()
-    }
-    
-    private func setupSession() {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 60
-        urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
-    }
-    
-    public func connect() {
-        guard let token = token else {
-            Self.addLog("No token available for WebSocket connection")
-            return
-        }
-        
-        guard let url = URL(string: "wss://sub.pushed.ru/v2/open-websocket/\(token)") else {
-            Self.addLog("Invalid WebSocket URL")
-            return
-        }
-        
-        disconnect()
-        
-        Self.addLog("Connecting to WebSocket: \(url.absoluteString)")
-        webSocketTask = urlSession?.webSocketTask(with: url)
-        webSocketTask?.resume()
-        
-        status = .connecting
-        onStatusChange?(.connecting)
-        shouldReconnect = true
-        
-        receiveMessage()
-    }
-    
-    public func disconnect() {
-        shouldReconnect = false
-        reconnectTimer?.invalidate()
-        reconnectTimer = nil
-        
-        webSocketTask?.cancel(with: .goingAway, reason: nil)
-        webSocketTask = nil
-        isConnected = false
-        
-        if status != .disconnected {
-            status = .disconnected
-            onStatusChange?(.disconnected)
-            Self.addLog("WebSocket disconnected")
-        }
-    }
-    
-    private func receiveMessage() {
-        webSocketTask?.receive { [weak self] result in
-            switch result {
-            case .success(let message):
-                self?.handleMessage(message)
-                // Continue receiving messages
-                self?.receiveMessage()
-                
-            case .failure(let error):
-                Self.addLog("WebSocket receive error: \(error.localizedDescription)")
-                self?.handleConnectionLoss()
-            }
-        }
-    }
-    
-    private func handleMessage(_ message: URLSessionWebSocketTask.Message) {
-        let messageString: String
-        
-        switch message {
-        case .string(let text):
-            messageString = text
-        case .data(let data):
-            messageString = String(data: data, encoding: .utf8) ?? ""
-        @unknown default:
-            Self.addLog("Unknown message type received")
-            return
-        }
-        
-        Self.addLog("Received message: \(messageString)")
-        
-        // First check for simple text status messages (like "ONLINE", "OFFLINE")
-        let trimmedMessage = messageString.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // Handle various status text messages
-        var statusString: String? = nil
-        switch trimmedMessage.uppercased() {
-        case "ONLINE", "CONNECTED":
-            statusString = "Connected"
-        case "OFFLINE", "DISCONNECTED":
-            statusString = "Disconnected"
-        case "CONNECTING":
-            statusString = "Connecting"
-        default:
-            break
-        }
-        
-        if let statusString = statusString,
-           let newStatus = PushedServiceStatus(rawValue: statusString) {
-            if status != newStatus {
-                status = newStatus
-                onStatusChange?(newStatus)
-                Self.addLog("Service status changed to: \(statusString) (from text: \(trimmedMessage))")
-            }
-            return
-        }
-        
-        // Try to parse as JSON
-        guard let data = messageString.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            Self.addLog("Message is not JSON and not a known text status: \(messageString)")
-            return
-        }
-        
-        // Handle JSON ServiceStatus messages
-        if let serviceStatus = json["ServiceStatus"] as? String,
-           let newStatus = PushedServiceStatus(rawValue: serviceStatus) {
-            if status != newStatus {
-                status = newStatus
-                onStatusChange?(newStatus)
-                Self.addLog("Service status changed to: \(serviceStatus)")
-            }
-            return
-        }
-        
-        // Handle regular messages with messageId
-        guard let messageId = json["messageId"] as? String else {
-            Self.addLog("Message without messageId received")
-            return
-        }
-        
-        // Skip if this is the same as last message
-        if messageId == lastMessageId {
-            Self.addLog("Duplicate message ignored: \(messageId)")
-            return
-        }
-        
-        // Save last message ID
-        lastMessageId = messageId
-        UserDefaults.standard.set(messageId, forKey: "pushedMessaging.lastMessageId")
-        
-        // Try to handle message with custom handler first
-        var handled = false
-        if let handler = onMessageReceived {
-            handled = handler(messageString)
-        }
-        
-        // If not handled, show as background notification
-        if !handled {
-            showBackgroundNotification(json)
-        }
-        
-        // Don't confirm WebSocket messages - confirmation is only for APNS messages
-        // PushedMessagingiOSLibrary.confirmMessageAction(messageId, action: "WebSocketReceived")
-    }
-    
-    private func showBackgroundNotification(_ messageData: [String: Any]) {
-        DispatchQueue.main.async {
-            // Check if we have notification permissions
-            UNUserNotificationCenter.current().getNotificationSettings { settings in
-                guard settings.authorizationStatus == .authorized else {
-                    Self.addLog("Notification permissions not granted")
-                    return
-                }
-                
-                let content = UNMutableNotificationContent()
-                
-                // Extract notification content
-                if let aps = messageData["aps"] as? [String: Any] {
-                    // Handle APNS format
-                    if let alert = aps["alert"] as? String {
-                        content.body = alert
-                    } else if let alertDict = aps["alert"] as? [String: Any] {
-                        content.title = alertDict["title"] as? String ?? ""
-                        content.body = alertDict["body"] as? String ?? ""
-                    }
-                    
-                    if let badge = aps["badge"] as? Int {
-                        content.badge = NSNumber(value: badge)
-                    }
-                    
-                    if let sound = aps["sound"] as? String, !sound.isEmpty {
-                        content.sound = UNNotificationSound(named: UNNotificationSoundName(sound))
-                    } else {
-                        content.sound = .default
-                    }
-                } else if let pushedNotification = messageData["pushedNotification"] as? [String: Any] {
-                    // Handle pushedNotification format
-                    content.title = pushedNotification["Title"] as? String ?? "Новое сообщение"
-                    content.body = pushedNotification["Body"] as? String ?? "Получено сообщение"
-                    content.sound = .default
-                    
-                    // Handle custom sound if specified
-                    if let soundName = pushedNotification["Sound"] as? String, !soundName.isEmpty {
-                        content.sound = UNNotificationSound(named: UNNotificationSoundName(soundName))
-                    }
-                    
-                    Self.addLog("Notification from pushedNotification: \(content.title) - \(content.body)")
-                } else {
-                    // Handle WebSocket format without aps or pushedNotification
-                    content.title = "Новое сообщение"
-                    content.sound = .default
-                    
-                    // Try to get message text from data field
-                    if let dataString = messageData["data"] as? String {
-                        content.body = dataString
-                    } else if let dataDict = messageData["data"] as? [String: Any] {
-                        // If data is a dictionary, try to extract meaningful text
-                        if let text = dataDict["text"] as? String {
-                            content.body = text
-                        } else if let message = dataDict["message"] as? String {
-                            content.body = message
-                        } else {
-                            content.body = "Получено новое сообщение через WebSocket"
-                        }
-                    } else {
-                        content.body = "Получено новое сообщение через WebSocket"
-                    }
-                }
-                
-                // Add custom data (important for handling clicks)
-                content.userInfo = messageData
-                
-                // Create request
-                let identifier = UUID().uuidString
-                let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
-                
-                // Schedule notification
-                UNUserNotificationCenter.current().add(request) { error in
-                    if let error = error {
-                        Self.addLog("Failed to schedule notification: \(error.localizedDescription)")
-                    } else {
-                        Self.addLog("Background notification scheduled")
-                    }
-                }
-            }
-        }
-    }
-    
-    private func handleConnectionLoss() {
-        isConnected = false
-        
-        if status != .disconnected {
-            status = .disconnected
-            onStatusChange?(.disconnected)
-        }
-        
-        if shouldReconnect {
-            Self.addLog("WebSocket connection lost, scheduling reconnect")
-            scheduleReconnect()
-        }
-    }
-    
-    private func scheduleReconnect() {
-        reconnectTimer?.invalidate()
-        reconnectTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { [weak self] _ in
-            if self?.shouldReconnect == true {
-                Self.addLog("Attempting WebSocket reconnect")
-                self?.connect()
-            }
-        }
-    }
-}
-
-// MARK: - URLSessionWebSocketDelegate
-@available(iOS 13.0, *)
-extension PushedWebSocketClient: URLSessionWebSocketDelegate {
-    
-    public func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
-        Self.addLog("WebSocket connection opened")
-        isConnected = true
-        status = .connected
-        onStatusChange?(.connected)
-        reconnectTimer?.invalidate()
-    }
-    
-    public func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
-        Self.addLog("WebSocket connection closed with code: \(closeCode.rawValue)")
-        handleConnectionLoss()
-    }
-}
-
-// MARK: - URLSessionDelegate
-@available(iOS 13.0, *)
-extension PushedWebSocketClient: URLSessionDelegate {
-    
-    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if let error = error {
-            Self.addLog("WebSocket task completed with error: \(error.localizedDescription)")
-            handleConnectionLoss()
-        }
-    }
-}

@@ -8,6 +8,9 @@ class ViewController: UIViewController {
     @IBOutlet weak var clientTokenLabel: UILabel!
     @IBOutlet weak var copyTokenButton: UIButton!
     
+    // New button for clearing token - added programmatically
+    private var clearTokenButton: UIButton!
+    
     private var retryCount = 0
     private let maxRetryCount = 5
     
@@ -18,6 +21,7 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+        setupClearTokenButton()
         updateTokenDisplay()
     }
     
@@ -60,6 +64,37 @@ class ViewController: UIViewController {
         copyTokenButton.setTitle("📋 Copy token", for: .normal)
     }
     
+    private func setupClearTokenButton() {
+        // Create clear token button programmatically
+        clearTokenButton = UIButton(type: .system)
+        clearTokenButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Style the button
+        if #available(iOS 13.0, *) {
+            clearTokenButton.backgroundColor = UIColor.systemRed
+        } else {
+            clearTokenButton.backgroundColor = UIColor(red: 1.0, green: 0.23, blue: 0.19, alpha: 1.0)
+        }
+        clearTokenButton.setTitleColor(.white, for: .normal)
+        clearTokenButton.layer.cornerRadius = 8
+        clearTokenButton.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+        clearTokenButton.setTitle("🔄 Reset Token", for: .normal)
+        
+        // Add target action
+        clearTokenButton.addTarget(self, action: #selector(clearTokenTapped), for: .touchUpInside)
+        
+        // Add to view
+        view.addSubview(clearTokenButton)
+        
+        // Setup constraints relative to copyTokenButton
+        NSLayoutConstraint.activate([
+            clearTokenButton.leadingAnchor.constraint(equalTo: copyTokenButton.leadingAnchor),
+            clearTokenButton.trailingAnchor.constraint(equalTo: copyTokenButton.trailingAnchor),
+            clearTokenButton.topAnchor.constraint(equalTo: copyTokenButton.bottomAnchor, constant: 16),
+            clearTokenButton.heightAnchor.constraint(equalTo: copyTokenButton.heightAnchor)
+        ])
+    }
+    
     private enum ServiceStatus {
         case loading
         case active
@@ -94,6 +129,8 @@ class ViewController: UIViewController {
             clientTokenLabel.text = token
             copyTokenButton.isEnabled = true
             copyTokenButton.alpha = 1.0
+            clearTokenButton.isEnabled = true
+            clearTokenButton.alpha = 1.0
             updateServiceStatus(.active)
             retryCount = 0 // Reset retry count on success
         } else {
@@ -101,6 +138,8 @@ class ViewController: UIViewController {
             clientTokenLabel.text = "Token not available"
             copyTokenButton.isEnabled = false
             copyTokenButton.alpha = 0.5
+            clearTokenButton.isEnabled = false
+            clearTokenButton.alpha = 0.5
             
             if retryCount < maxRetryCount {
                 // Still trying to get token - show loading
@@ -138,12 +177,55 @@ class ViewController: UIViewController {
             sender.setTitle(originalTitle, for: .normal)
         }
     }
+    
+    @objc private func clearTokenTapped() {
+        // Show confirmation alert
+        let alert = UIAlertController(title: "Reset Token", 
+                                    message: "This will clear the current token and create a new one. Continue?", 
+                                    preferredStyle: .alert)
+        
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Reset", style: .destructive) { _ in
+            self.performTokenReset()
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    private func performTokenReset() {
+        // Update UI to show resetting state
+        updateServiceStatus(.loading)
+        clientTokenLabel.text = "Resetting token..."
+        copyTokenButton.isEnabled = false
+        copyTokenButton.alpha = 0.5
+        clearTokenButton.isEnabled = false
+        clearTokenButton.alpha = 0.5
+        
+        // Show feedback on clear button
+        let originalTitle = clearTokenButton.title(for: .normal)
+        clearTokenButton.setTitle("🔄 Resetting...", for: .normal)
+        
+        // Clear the existing token
+        PushedMessagingiOSLibrary.clearTokenForTesting()
+        
+        // Reset retry count and trigger new token generation
+        retryCount = 0
+        
+        // Register for remote notifications again to trigger token generation
+        UIApplication.shared.registerForRemoteNotifications()
+        
+        // Wait a bit and then start checking for new token
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.clearTokenButton.setTitle(originalTitle, for: .normal)
+            self.updateTokenDisplay()
+        }
+    }
 }
 
 extension ViewController {
     // This method can be called when the Pushed library is initialized
     @objc func isPushedInited(didRecievePushedClientToken pushedToken: String) {
-        print("Pushed token received: \(pushedToken)")
+        print("Pushed token received in ViewController")
         DispatchQueue.main.async {
             self.retryCount = 0 // Reset retry count on successful token receipt
             self.updateTokenDisplay()

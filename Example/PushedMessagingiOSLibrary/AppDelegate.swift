@@ -14,10 +14,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // Request notification permissions
         requestNotificationPermissions()
         
-        // Configure app group for sharing data with Notification Service Extension
-        // This must be called before setup() if you want to use custom app group
-        PushedMessagingiOSLibrary.configureAppGroup("group.pushed.example")
-        
         // Set to true if you have Notification Service Extension that handles message confirmation
         // This prevents duplicate confirmation from main app
         PushedMessagingiOSLibrary.extensionHandlesConfirmation = true
@@ -34,6 +30,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             // This will automatically show notification and handle clicks through didReceive response
             return false
         }
+        
         return true
     }
     
@@ -85,12 +82,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     // Called when a Pushed library inited
     @objc
     public func isPushedInited(didRecievePushedClientToken pushedToken: String) {
-      // To send a message to a specific user, you need to know his Client token.
-      print("Pushed token: \(pushedToken)")
-
+        print("Pushed token received")
     }
-
     
+    // Cleanup when app terminates
+    func applicationWillTerminate(_ application: UIApplication) {
+        PushedMessagingiOSLibrary.cleanup()
+    }
 
 }
 

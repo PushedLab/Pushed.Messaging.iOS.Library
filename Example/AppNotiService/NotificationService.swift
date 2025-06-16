@@ -23,8 +23,8 @@ class NotificationService: UNNotificationServiceExtension {
         NSLog("[Extension] didReceiveNotificationRequest called with userInfo: \(request.content.userInfo)")
 
         // Check if APNS is enabled (reading from UserDefaults)
-        let isAPNSEnabled = UserDefaults.standard.bool(forKey: "pushedMessaging.apnsEnabled")
-        
+        let isAPNSEnabled = UserDefaults.standard.bool(forKey: "pushedMessaging.alertEnabled")
+        NSLog("[Extension] isAPNSEnabled: \(isAPNSEnabled)")                
         if isAPNSEnabled {
             // APNS enabled - process message confirmation
             if let messageId = request.content.userInfo["messageId"] as? String {

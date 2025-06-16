@@ -201,17 +201,15 @@ public class PushedMessagingiOSLibrary: NSProxy {
             }
         }
         
-        if(UserDefaults.standard.string(forKey: "pushedMessaging.operatingSystem") != operatingSystem){
             parameters["operatingSystem"] = operatingSystem
-        }
+
         let alerts = UserDefaults.standard.bool(forKey: "pushedMessaging.alertEnabled")
 
-        if(UserDefaults.standard.bool(forKey: "pushedMessaging.alertsNeedUpdate")) {
-            parameters["displayPushNotificationsPermission"] = alerts
-        }
-        if(UserDefaults.standard.string(forKey: "pushedMessaging.sdkVersion") != sdkVersion){
-            parameters["sdkVersion"] = sdkVersion
-        }
+        parameters["displayPushNotificationsPermission"] = alerts
+
+
+        parameters["sdkVersion"] = sdkVersion
+
 
         let url = URL(string: "https://sub.multipushed.ru/v2/tokens")!
         let session = URLSession.shared

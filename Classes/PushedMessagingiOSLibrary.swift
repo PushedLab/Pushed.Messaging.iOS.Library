@@ -201,7 +201,6 @@ public class PushedMessagingiOSLibrary: NSProxy {
             }
         }
         
-
             parameters["operatingSystem"] = operatingSystem
 
         let alerts = UserDefaults.standard.bool(forKey: "pushedMessaging.alertEnabled")

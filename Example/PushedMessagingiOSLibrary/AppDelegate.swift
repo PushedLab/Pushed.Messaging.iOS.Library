@@ -23,6 +23,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         PushedMessagingiOSLibrary.enableWebSocket() 
 
+        PushedMessagingiOSLibrary.enableAPNS()
+
         PushedMessagingiOSLibrary.onWebSocketMessageReceived = { messageJson in
             print("Received WebSocket message: \(messageJson)")
             

@@ -11,6 +11,9 @@ class ViewController: UIViewController {
     // New button for clearing token - added programmatically
     private var clearTokenButton: UIButton!
     
+    // Application ID input field
+    private var applicationIdTextField: UITextField!
+    
     private var retryCount = 0
     private let maxRetryCount = 5
     
@@ -22,6 +25,8 @@ class ViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         setupClearTokenButton()
+        setupApplicationIdField()
+        updateClearTokenButtonConstraints()
         updateTokenDisplay()
     }
     
@@ -64,6 +69,52 @@ class ViewController: UIViewController {
         copyTokenButton.setTitle("📋 Copy token", for: .normal)
     }
     
+    private func setupApplicationIdField() {
+        // Ensure required buttons are available
+        guard let copyButton = copyTokenButton, let clearButton = clearTokenButton else {
+            print("Error: copyTokenButton or clearTokenButton is nil in setupApplicationIdField")
+            return
+        }
+        
+        // Create text field for Application ID
+        applicationIdTextField = UITextField()
+        applicationIdTextField.translatesAutoresizingMaskIntoConstraints = false
+        applicationIdTextField.placeholder = "Enter application ID (optional)"
+        applicationIdTextField.textColor = .black
+        applicationIdTextField.font = UIFont.systemFont(ofSize: 16, weight: .regular)
+        applicationIdTextField.borderStyle = .roundedRect
+        if #available(iOS 13.0, *) {
+            applicationIdTextField.backgroundColor = UIColor.systemGray6
+        } else {
+            applicationIdTextField.backgroundColor = UIColor(white: 0.2, alpha: 1.0)
+        }
+        applicationIdTextField.layer.cornerRadius = 8
+        applicationIdTextField.textAlignment = .center
+        
+        // Add toolbar with Done button to dismiss keyboard
+        let toolbar = UIToolbar()
+        toolbar.sizeToFit()
+        let doneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissKeyboard))
+        let flexSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        toolbar.items = [flexSpace, doneButton]
+        applicationIdTextField.inputAccessoryView = toolbar
+        
+        view.addSubview(applicationIdTextField)
+        
+        // Setup constraints - position application ID field between copy token and reset token
+        NSLayoutConstraint.activate([
+            // Text field constraints - same size as buttons, positioned between copy and reset
+            applicationIdTextField.leadingAnchor.constraint(equalTo: copyButton.leadingAnchor),
+            applicationIdTextField.trailingAnchor.constraint(equalTo: copyButton.trailingAnchor),
+            applicationIdTextField.topAnchor.constraint(equalTo: copyButton.bottomAnchor, constant: 16),
+            applicationIdTextField.heightAnchor.constraint(equalTo: copyButton.heightAnchor)
+        ])
+    }
+    
+    @objc private func dismissKeyboard() {
+        applicationIdTextField.resignFirstResponder()
+    }
+    
     private func setupClearTokenButton() {
         // Create clear token button programmatically
         clearTokenButton = UIButton(type: .system)
@@ -86,11 +137,24 @@ class ViewController: UIViewController {
         // Add to view
         view.addSubview(clearTokenButton)
         
-        // Setup constraints relative to copyTokenButton
+        // Setup constraints relative to copyTokenButton (temporarily, will be updated after applicationIdTextField is created)
         NSLayoutConstraint.activate([
             clearTokenButton.leadingAnchor.constraint(equalTo: copyTokenButton.leadingAnchor),
             clearTokenButton.trailingAnchor.constraint(equalTo: copyTokenButton.trailingAnchor),
             clearTokenButton.topAnchor.constraint(equalTo: copyTokenButton.bottomAnchor, constant: 16),
+            clearTokenButton.heightAnchor.constraint(equalTo: copyTokenButton.heightAnchor)
+        ])
+    }
+    
+    private func updateClearTokenButtonConstraints() {
+        // Update constraints to position reset button below application ID field
+        clearTokenButton.removeFromSuperview()
+        view.addSubview(clearTokenButton)
+        
+        NSLayoutConstraint.activate([
+            clearTokenButton.leadingAnchor.constraint(equalTo: copyTokenButton.leadingAnchor),
+            clearTokenButton.trailingAnchor.constraint(equalTo: copyTokenButton.trailingAnchor),
+            clearTokenButton.topAnchor.constraint(equalTo: applicationIdTextField.bottomAnchor, constant: 16),
             clearTokenButton.heightAnchor.constraint(equalTo: copyTokenButton.heightAnchor)
         ])
     }
@@ -205,14 +269,29 @@ class ViewController: UIViewController {
         let originalTitle = clearTokenButton.title(for: .normal)
         clearTokenButton.setTitle("🔄 Resetting...", for: .normal)
         
+        // Get applicationId from text field
+        let applicationId = applicationIdTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let applicationIdToUse = applicationId?.isEmpty == false ? applicationId : nil
+        
+        // Debug logs
+        print("🔍 DEBUG: Raw text from field: '\(applicationIdTextField.text ?? "nil")'")
+        print("🔍 DEBUG: Trimmed applicationId: '\(applicationId ?? "nil")'")
+        print("🔍 DEBUG: applicationIdToUse (final): '\(applicationIdToUse ?? "nil")'")
+        print("🔍 DEBUG: Will send applicationId: \(applicationIdToUse != nil ? "YES" : "NO")")
+        
         // Clear the existing token
         PushedMessagingiOSLibrary.clearTokenForTesting()
         
-        // Reset retry count and trigger new token generation
+        // Reset retry count and trigger new token generation with applicationId
         retryCount = 0
         
-        // Register for remote notifications again to trigger token generation
-        UIApplication.shared.registerForRemoteNotifications()
+        // Use the new method to refresh token with applicationId
+        print("🔍 DEBUG: Calling refreshTokenWithApplicationId with: '\(applicationIdToUse ?? "nil")'")
+        PushedMessagingiOSLibrary.refreshTokenWithApplicationId(applicationIdToUse)
+        
+        // Note: We don't call UIApplication.shared.registerForRemoteNotifications() here
+        // because it would trigger didRegisterForRemoteNotificationsWithDeviceToken
+        // which calls refreshPushedToken without applicationId, potentially overriding our request
         
         // Wait a bit and then start checking for new token
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {

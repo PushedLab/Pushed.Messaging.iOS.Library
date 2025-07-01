@@ -50,6 +50,8 @@ public enum PushedServiceStatus: String {
 public class PushedMessagingiOSLibrary: NSProxy {
     
     private static var pushedToken: String?
+    /// Stores the last successfully received APNS token as hex string
+    private static var lastApnsToken: String?
     private static let sdkVersion = "iOS Native 1.0.1"
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
     @available(iOS 13.0, *)
@@ -144,6 +146,22 @@ public class PushedMessagingiOSLibrary: NSProxy {
         addLog("Token cleared successfully")
     }
 
+    /// Refresh Pushed token with optional applicationId
+    /// This will generate a new token with the provided applicationId
+    public static func refreshTokenWithApplicationId(_ applicationId: String?) {
+        addLog("🔍 DEBUG: refreshTokenWithApplicationId called with: '\(applicationId ?? "nil")'")
+        addLog("🔍 DEBUG: applicationId is nil: \(applicationId == nil)")
+        addLog("🔍 DEBUG: applicationId isEmpty: \(applicationId?.isEmpty ?? true)")
+        addLog("Refreshing token with applicationId: \(applicationId ?? "nil")")
+        let tokenToUse = isAPNSEnabled ? lastApnsToken : nil
+        if tokenToUse == nil {
+            addLog("🔍 DEBUG: No stored APNS token available, deviceSettings will be empty")
+        } else {
+            addLog("🔍 DEBUG: Using stored APNS token in request")
+        }
+        refreshPushedToken(in: nil, apnsToken: tokenToUse, applicationId: applicationId)
+    }
+
     private static func saveSecToken(_ token:String)->Bool{
         var query: [CFString: Any] = [kSecClass: kSecClassGenericPassword]
         query[kSecAttrAccount] = "pushed_token"
@@ -177,7 +195,9 @@ public class PushedMessagingiOSLibrary: NSProxy {
         return String(data: data, encoding: .utf8)
     }
 
-    private static func refreshPushedToken(in object: AnyObject?, apnsToken: String?){
+    private static func refreshPushedToken(in object: AnyObject?, apnsToken: String?, applicationId: String? = nil){
+        
+        addLog("🔍 DEBUG: refreshPushedToken called with applicationId: '\(applicationId ?? "nil")'")
         
         var clientToken = pushedToken
         if(clientToken == nil) {
@@ -185,6 +205,17 @@ public class PushedMessagingiOSLibrary: NSProxy {
         }
         
         var parameters: [String: Any] = ["clientToken": clientToken ?? ""]
+        
+        // Include applicationId if provided
+        if let applicationId = applicationId, !applicationId.isEmpty {
+            parameters["applicationId"] = applicationId
+            addLog("🔍 DEBUG: Including applicationId in request: \(applicationId)")
+            addLog("Including applicationId in request: \(applicationId)")
+        } else {
+            addLog("🔍 DEBUG: applicationId is nil or empty, not including in request")
+            addLog("🔍 DEBUG: applicationId == nil: \(applicationId == nil)")
+            addLog("🔍 DEBUG: applicationId?.isEmpty: \(applicationId?.isEmpty ?? true)")
+        }
         
         // Include deviceSettings based on APNS enabled state and token availability
         if let apnsToken = apnsToken, isAPNSEnabled {
@@ -218,6 +249,16 @@ public class PushedMessagingiOSLibrary: NSProxy {
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         addLog("Post Request body: \(parameters)")
+        
+        // Debug: Show final JSON that will be sent
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: parameters)
+            if let jsonString = String(data: jsonData, encoding: .utf8) {
+                addLog("🔍 DEBUG: Final JSON being sent: \(jsonString)")
+            }
+        } catch {
+            addLog("🔍 DEBUG: Could not serialize parameters to JSON for logging")
+        }
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: parameters)
@@ -301,6 +342,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
     public static func confirmMessage(messageId: String, application: UIApplication, in object: AnyObject, userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void){
       
         let clientToken = clientToken ?? getSecToken() ?? ""
+        addLog("🔍 DEBUG: confirmMessage using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
         let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
@@ -345,6 +387,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
 
         confirmMessageAction(messageId, action: "Click")
         let clientToken = clientToken ?? getSecToken() ?? ""
+        addLog("🔍 DEBUG: confirmMessageAction using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
         let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
@@ -372,6 +415,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
     }
      public static func confirmMessageAction(_ messageId : String, action : String){
         let clientToken = clientToken ?? getSecToken() ?? ""
+        addLog("🔍 DEBUG: confirmMessageAction using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
         let url = URL(string: "https://api.multipushed.ru/v2/mobile-push/confirm-client-interaction?clientInteraction=\(action)")!
         let session = URLSession.shared
@@ -419,7 +463,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
         } else {
             addLog("APNS registration disabled - skipping remote notifications registration")
             // Still request pushed token for WebSocket-only mode
-            refreshPushedToken(in: appDel, apnsToken: nil)
+            refreshPushedToken(in: appDel, apnsToken: nil, applicationId: nil)
         }
         
         // Setup application state observers for WebSocket management
@@ -676,7 +720,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
             if(granted != alerts){
                 UserDefaults.standard.setValue(granted, forKey: "pushedMessaging.alertEnabled")
                 UserDefaults.standard.setValue(true, forKey: "pushedMessaging.alertsNeedUpdate")
-                refreshPushedToken(in: nil, apnsToken: nil)
+                refreshPushedToken(in: nil, apnsToken: nil, applicationId: nil)
             }
             addLog("Notification permissions granted: \(granted)")
         }
@@ -808,10 +852,12 @@ public class PushedMessagingiOSLibrary: NSProxy {
         // Only process APNS token if APNS is enabled
         if PushedMessagingiOSLibrary.isAPNSEnabled {
             PushedMessagingiOSLibrary.addLog("APNS enabled - processing token")
-            PushedMessagingiOSLibrary.refreshPushedToken(in: self, apnsToken: deviceToken.hexString)
+            // Store token for future requests
+            PushedMessagingiOSLibrary.lastApnsToken = deviceToken.hexString
+            PushedMessagingiOSLibrary.refreshPushedToken(in: self, apnsToken: deviceToken.hexString, applicationId: nil)
         } else {
             PushedMessagingiOSLibrary.addLog("APNS disabled - getting client token without APNS token")
-            PushedMessagingiOSLibrary.refreshPushedToken(in: self, apnsToken: nil)
+            PushedMessagingiOSLibrary.refreshPushedToken(in: self, apnsToken: nil, applicationId: nil)
         }
         
         let methodSelector = #selector(application(_:didRegisterForRemoteNotificationsWithDeviceToken:))

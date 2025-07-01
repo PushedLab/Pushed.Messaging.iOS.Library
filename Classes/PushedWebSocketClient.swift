@@ -386,13 +386,15 @@ public class PushedWebSocketClient: NSObject {
             Self.addLog("Custom message handler returned: \(handled)")
         }
         
-        // If not handled, show as background notification
-        if !handled {
+        if handled {
+            // Message processed by the app – already handled
+            Self.addLog("Message handled by custom handler, still sending confirmation over WS")
+        } else {
+            // If not handled, show background notification (will also confirm here)
             Self.addLog("Showing background notification for message: \(messageId)")
             showBackgroundNotification(json)
         }
-        
-        // Confirm WebSocket message
+        // Send confirmation over WebSocket in all cases (matching Pushed server expectations)
         confirmWebSocketMessage(messageId: messageId, mfTraceId: mfTraceId)
     }
     
@@ -571,10 +573,18 @@ public class PushedWebSocketClient: NSObject {
     private func confirmWebSocketMessage(messageId: String, mfTraceId: String) {
         Self.addLog("Preparing to confirm WebSocket message - ID: \(messageId), TraceID: \(mfTraceId)")
         
-        let confirmationData: [String: Any] = [
-            "messageId": messageId,
-            "MfTraceId": mfTraceId
-        ]
+        var confirmationDict: [String: Any] = ["messageId": messageId]
+        if !mfTraceId.isEmpty {
+            confirmationDict["mfTraceId"] = mfTraceId
+        }
+        
+        if let curToken = PushedMessagingiOSLibrary.clientToken {
+            Self.addLog("🔍 DEBUG: WebSocket confirm uses current clientToken: \(curToken.prefix(8))… (length: \(curToken.count))")
+        } else {
+            Self.addLog("🔍 DEBUG: WebSocket confirm clientToken is nil at this moment")
+        }
+        
+        let confirmationData = confirmationDict
         
         guard let jsonData = try? JSONSerialization.data(withJSONObject: confirmationData),
               let jsonString = String(data: jsonData, encoding: .utf8) else {

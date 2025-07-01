@@ -277,9 +277,6 @@ if #available(iOS 13.0, *) {
 // Включить APNS push-уведомления (включено по умолчанию)
 PushedMessagingiOSLibrary.enableAPNS()
 
-// Отключить APNS push-уведомления (для WebSocket-only режима)
-PushedMessagingiOSLibrary.disableAPNS()
-
 // Проверить статус APNS
 let isEnabled = PushedMessagingiOSLibrary.isAPNSEnabled
 print("APNS enabled: \(isEnabled)")

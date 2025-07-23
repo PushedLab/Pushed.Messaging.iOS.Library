@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		07D4591D2C5186570F7EB4A5 /* Pods_PushedMessagingiOSLibrary_Tests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5083CF4CAA26D2C6384B6307 /* Pods_PushedMessagingiOSLibrary_Tests.framework */; };
-		2C25637351B795ACF725B36B /* Pods_PushedMessagingiOSLibrary_Example.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ABBE81B8D5BD957A57687A50 /* Pods_PushedMessagingiOSLibrary_Example.framework */; };
 		607FACD61AFB9204008FA782 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD51AFB9204008FA782 /* AppDelegate.swift */; };
 		607FACD81AFB9204008FA782 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD71AFB9204008FA782 /* ViewController.swift */; };
 		607FACDB1AFB9204008FA782 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 607FACD91AFB9204008FA782 /* Main.storyboard */; };
@@ -16,6 +14,7 @@
 		607FACE01AFB9204008FA782 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDE1AFB9204008FA782 /* LaunchScreen.xib */; };
 		607FACEC1AFB9204008FA782 /* Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACEB1AFB9204008FA782 /* Tests.swift */; };
 		A89CA3D82DF6F0ED00AE7760 /* AppNotiService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A89CA3D02DF6F0ED00AE7760 /* AppNotiService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A8E982972E3109A100B397D8 /* PushedMessagingiOSLibrary in Frameworks */ = {isa = PBXBuildFile; productRef = A8E982962E3109A100B397D8 /* PushedMessagingiOSLibrary */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -51,9 +50,7 @@
 
 /* Begin PBXFileReference section */
 		1B2CF591937A23361B152A1A /* README.md */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
-		279071332ED8CA226AFB8587 /* Pods-PushedMessagingiOSLibrary_Example.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PushedMessagingiOSLibrary_Example.release.xcconfig"; path = "Target Support Files/Pods-PushedMessagingiOSLibrary_Example/Pods-PushedMessagingiOSLibrary_Example.release.xcconfig"; sourceTree = "<group>"; };
 		292B109589E830089B0AD362 /* PushedMessagingiOSLibrary.podspec */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = PushedMessagingiOSLibrary.podspec; path = ../PushedMessagingiOSLibrary.podspec; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
-		5083CF4CAA26D2C6384B6307 /* Pods_PushedMessagingiOSLibrary_Tests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_PushedMessagingiOSLibrary_Tests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACD01AFB9204008FA782 /* PushedMessagingiOSLibrary_Example.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PushedMessagingiOSLibrary_Example.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACD41AFB9204008FA782 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		607FACD51AFB9204008FA782 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -64,13 +61,9 @@
 		607FACE51AFB9204008FA782 /* PushedMessagingiOSLibrary_Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PushedMessagingiOSLibrary_Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACEA1AFB9204008FA782 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		607FACEB1AFB9204008FA782 /* Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests.swift; sourceTree = "<group>"; };
-		75682D1F9E2F331BB8C3AABB /* Pods-PushedMessagingiOSLibrary_Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PushedMessagingiOSLibrary_Example.debug.xcconfig"; path = "Target Support Files/Pods-PushedMessagingiOSLibrary_Example/Pods-PushedMessagingiOSLibrary_Example.debug.xcconfig"; sourceTree = "<group>"; };
 		A89CA3D02DF6F0ED00AE7760 /* AppNotiService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AppNotiService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		ABBE81B8D5BD957A57687A50 /* Pods_PushedMessagingiOSLibrary_Example.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_PushedMessagingiOSLibrary_Example.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		BECE00F860E469094DBCC052 /* Pods-PushedMessagingiOSLibrary_Tests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PushedMessagingiOSLibrary_Tests.debug.xcconfig"; path = "Target Support Files/Pods-PushedMessagingiOSLibrary_Tests/Pods-PushedMessagingiOSLibrary_Tests.debug.xcconfig"; sourceTree = "<group>"; };
 		DACF286D435F3FB0BCBDBDF0 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = LICENSE; path = ../LICENSE; sourceTree = "<group>"; };
 		F4CF76592C46A1860088328D /* PushedMessagingiOSLibrary_Example.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PushedMessagingiOSLibrary_Example.entitlements; sourceTree = "<group>"; };
-		F57597F6245EE6B5D0054AC6 /* Pods-PushedMessagingiOSLibrary_Tests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PushedMessagingiOSLibrary_Tests.release.xcconfig"; path = "Target Support Files/Pods-PushedMessagingiOSLibrary_Tests/Pods-PushedMessagingiOSLibrary_Tests.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -92,7 +85,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2C25637351B795ACF725B36B /* Pods_PushedMessagingiOSLibrary_Example.framework in Frameworks */,
+				A8E982972E3109A100B397D8 /* PushedMessagingiOSLibrary in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -100,7 +93,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				07D4591D2C5186570F7EB4A5 /* Pods_PushedMessagingiOSLibrary_Tests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -124,7 +116,7 @@
 				A89CA3D12DF6F0ED00AE7760 /* AppNotiService */,
 				607FACD11AFB9204008FA782 /* Products */,
 				A34693535452FA857DDBF57B /* Pods */,
-				C9DE02085290395B40A3E126 /* Frameworks */,
+				A8E9828E2E3106E400B397D8 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -190,19 +182,13 @@
 		A34693535452FA857DDBF57B /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				75682D1F9E2F331BB8C3AABB /* Pods-PushedMessagingiOSLibrary_Example.debug.xcconfig */,
-				279071332ED8CA226AFB8587 /* Pods-PushedMessagingiOSLibrary_Example.release.xcconfig */,
-				BECE00F860E469094DBCC052 /* Pods-PushedMessagingiOSLibrary_Tests.debug.xcconfig */,
-				F57597F6245EE6B5D0054AC6 /* Pods-PushedMessagingiOSLibrary_Tests.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
 		};
-		C9DE02085290395B40A3E126 /* Frameworks */ = {
+		A8E9828E2E3106E400B397D8 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				ABBE81B8D5BD957A57687A50 /* Pods_PushedMessagingiOSLibrary_Example.framework */,
-				5083CF4CAA26D2C6384B6307 /* Pods_PushedMessagingiOSLibrary_Tests.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -214,12 +200,10 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 607FACEF1AFB9204008FA782 /* Build configuration list for PBXNativeTarget "PushedMessagingiOSLibrary_Example" */;
 			buildPhases = (
-				65D477E5CDCFDB9A4F380C1A /* [CP] Check Pods Manifest.lock */,
 				607FACCC1AFB9204008FA782 /* Sources */,
 				607FACCD1AFB9204008FA782 /* Frameworks */,
 				607FACCE1AFB9204008FA782 /* Resources */,
 				A89CA39A2DF6EF1700AE7760 /* Embed Foundation Extensions */,
-				098B8CB71268CC321D2B7FCA /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -235,7 +219,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 607FACF21AFB9204008FA782 /* Build configuration list for PBXNativeTarget "PushedMessagingiOSLibrary_Tests" */;
 			buildPhases = (
-				46A35A9159A95317AF5C70AE /* [CP] Check Pods Manifest.lock */,
 				607FACE11AFB9204008FA782 /* Sources */,
 				607FACE21AFB9204008FA782 /* Frameworks */,
 				607FACE31AFB9204008FA782 /* Resources */,
@@ -306,6 +289,9 @@
 				Base,
 			);
 			mainGroup = 607FACC71AFB9204008FA782;
+			packageReferences = (
+				A8E982952E3109A100B397D8 /* XCLocalSwiftPackageReference "../../Pushed.Messaging.iOS.Library" */,
+			);
 			productRefGroup = 607FACD11AFB9204008FA782 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -343,71 +329,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		098B8CB71268CC321D2B7FCA /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-PushedMessagingiOSLibrary_Example/Pods-PushedMessagingiOSLibrary_Example-frameworks.sh",
-				"${BUILT_PRODUCTS_DIR}/PushedMessagingiOSLibrary/PushedMessagingiOSLibrary.framework",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/PushedMessagingiOSLibrary.framework",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-PushedMessagingiOSLibrary_Example/Pods-PushedMessagingiOSLibrary_Example-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		46A35A9159A95317AF5C70AE /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-PushedMessagingiOSLibrary_Tests-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-		65D477E5CDCFDB9A4F380C1A /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-PushedMessagingiOSLibrary_Example-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		607FACCC1AFB9204008FA782 /* Sources */ = {
@@ -571,7 +492,6 @@
 		};
 		607FACF01AFB9204008FA782 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 75682D1F9E2F331BB8C3AABB /* Pods-PushedMessagingiOSLibrary_Example.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PushedMessagingiOSLibrary_Example.entitlements;
@@ -592,7 +512,6 @@
 		};
 		607FACF11AFB9204008FA782 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 279071332ED8CA226AFB8587 /* Pods-PushedMessagingiOSLibrary_Example.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PushedMessagingiOSLibrary_Example.entitlements;
@@ -613,7 +532,6 @@
 		};
 		607FACF31AFB9204008FA782 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = BECE00F860E469094DBCC052 /* Pods-PushedMessagingiOSLibrary_Tests.debug.xcconfig */;
 			buildSettings = {
 				DEVELOPMENT_TEAM = TGX69G64CM;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -641,7 +559,6 @@
 		};
 		607FACF41AFB9204008FA782 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F57597F6245EE6B5D0054AC6 /* Pods-PushedMessagingiOSLibrary_Tests.release.xcconfig */;
 			buildSettings = {
 				DEVELOPMENT_TEAM = TGX69G64CM;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -787,6 +704,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A8E982952E3109A100B397D8 /* XCLocalSwiftPackageReference "../../Pushed.Messaging.iOS.Library" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../Pushed.Messaging.iOS.Library;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A8E982962E3109A100B397D8 /* PushedMessagingiOSLibrary */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PushedMessagingiOSLibrary;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 607FACC81AFB9204008FA782 /* Project object */;
 }

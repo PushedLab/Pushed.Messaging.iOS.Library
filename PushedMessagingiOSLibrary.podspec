@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'PushedMessagingiOSLibrary'
-  s.version          = '1.0.3'
+  s.version          = '1.0.4'
   s.summary          = 'Pushed Messaging iOS Library.'
 
 # This description is used to generate tags and improve search results.
@@ -29,7 +29,8 @@ TODO: Add long description of the pod here.
   # s.social_media_url = 'https://twitter.com/<TWITTER_USERNAME>'
   s.swift_version = '5.0'
   s.ios.deployment_target = '12.0'
-  s.source_files = 'Classes/**/*.swift'
+  # Исходники пакета находятся в стандартной для SPM структуре
+  s.source_files = 'Sources/PushedMessagingiOSLibrary/**/*.{swift}'
   
   # s.resource_bundles = {
   #   'PushedMessagingiOSLibrary' => ['PushedMessagingiOSLibrary/Assets/*.png']
@@ -38,4 +39,6 @@ TODO: Add long description of the pod here.
   # s.public_header_files = 'Pod/Classes/**/*.h'
   # s.frameworks = 'UIKit', 'MapKit'
   # s.dependency 'AFNetworking', '~> 2.3'
+  # Зависимость от Starscream для WebSocket (iOS 13+)
+  s.dependency 'Starscream', '~> 4.0'
 end

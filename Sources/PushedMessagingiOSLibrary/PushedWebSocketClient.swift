@@ -138,13 +138,13 @@ public class PushedWebSocketClient: NSObject, WebSocketDelegate {
             Self.addLog("Message without messageId received.")
             return
         }
-
+        
         // Deduplication against previously received APNs notifications
         if PushedMessagingiOSLibrary.isMessageProcessed(messageId) {
             Self.addLog("Duplicate message already processed via APNs. Ignoring WebSocket push (messageId: \(messageId))")
             return
         }
-
+        
         // Mark as processed so APNs duplicate won't be shown later
         PushedMessagingiOSLibrary.markMessageProcessed(messageId)
         Self.addLog("[Dedup] messageId \(messageId) marked as processed from WebSocket path")
@@ -160,7 +160,7 @@ public class PushedWebSocketClient: NSObject, WebSocketDelegate {
         let mfTraceId = json["mfTraceId"] as? String ?? ""
         
         let handled = onMessageReceived?(messageString) ?? false
-
+        
         if handled {
             Self.addLog("Message handled by custom handler.")
         } else {
@@ -196,7 +196,7 @@ public class PushedWebSocketClient: NSObject, WebSocketDelegate {
                 }
                 
                 let content = UNMutableNotificationContent()
-
+                
                 if let pushedNotification = messageData["pushedNotification"] as? [String: Any] {
                     content.title = pushedNotification["Title"] as? String ?? "New Message"
                     content.body = pushedNotification["Body"] as? String ?? "You have a new message."

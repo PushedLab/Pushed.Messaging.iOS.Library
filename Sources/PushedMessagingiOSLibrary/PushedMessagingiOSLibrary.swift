@@ -63,6 +63,72 @@ public class PushedMessagingiOSLibrary: NSProxy {
     private static var activeObserver: NSObjectProtocol?
     private static var resignActiveObserver: NSObjectProtocol?
 
+    // MARK: - NotificationCenter Delegate Proxy (for APNs deduplication)
+
+    private class NotificationCenterProxy: NSObject, UNUserNotificationCenterDelegate {
+        weak var original: UNUserNotificationCenterDelegate?
+
+        init(original: UNUserNotificationCenterDelegate?) {
+            self.original = original
+        }
+
+        // Suppress notifications already handled via WebSocket
+        func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+            // Differentiate between remote (APNs) and local (WebSocket) notifications
+            if notification.request.trigger is UNPushNotificationTrigger {
+                let userInfo = notification.request.content.userInfo
+                if let msgId = userInfo["messageId"] as? String, PushedMessagingiOSLibrary.isMessageProcessed(msgId) {
+                    PushedMessagingiOSLibrary.addLog("[Delegate] Suppressing APNs UI for already processed messageId: \(msgId)")
+                    completionHandler([]) // hide UI
+                    return
+                }
+            }
+
+            // Forward to original delegate if implemented, otherwise present normally
+            if let orig = original, orig.responds(to: #selector(userNotificationCenter(_:willPresent:withCompletionHandler:))) {
+                orig.userNotificationCenter?(center, willPresent: notification, withCompletionHandler: completionHandler)
+            } else {
+                if #available(iOS 14.0, *) {
+                    completionHandler([.banner, .badge, .sound])
+                } else {
+                    completionHandler([.alert, .badge, .sound])
+                }
+            }
+        }
+
+        // Forward other delegate calls transparently
+        func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+            original?.userNotificationCenter?(center, didReceive: response, withCompletionHandler: completionHandler) ?? completionHandler()
+        }
+    }
+
+    private static var notificationCenterProxy: NotificationCenterProxy?
+
+    // MARK: - Message Deduplication
+
+    /// Maximum number of messageIds to keep for deduplication
+    private static let maxStoredMessageIds = 1000
+
+    /// Returns true if the message with the provided `messageId` was already processed (via WebSocket or APNs)
+    static func isMessageProcessed(_ messageId: String) -> Bool {
+        let processed = UserDefaults.standard.array(forKey: "pushedMessaging.processedMessageIds") as? [String] ?? []
+        let already = processed.contains(messageId)
+        addLog("[Dedup] Check processed for messageId: \(messageId) → \(already)")
+        return already
+    }
+
+    /// Marks the message with the provided `messageId` as processed so duplicates wonʼt be shown later
+    static func markMessageProcessed(_ messageId: String) {
+        var processed = UserDefaults.standard.array(forKey: "pushedMessaging.processedMessageIds") as? [String] ?? []
+        processed.append(messageId)
+        // Keep only the most recent `maxStoredMessageIds` elements to avoid unbounded growth
+        if processed.count > maxStoredMessageIds {
+            processed = Array(processed.suffix(maxStoredMessageIds))
+        }
+        UserDefaults.standard.set(processed, forKey: "pushedMessaging.processedMessageIds")
+        addLog("[Dedup] Stored messageId as processed: \(messageId). Total stored: \(processed.count)")
+    }
+
     /// Set to true if you have a Notification Service Extension that handles message confirmation
     /// This will prevent duplicate confirmation requests from the main app
     public static var extensionHandlesConfirmation: Bool = false
@@ -102,7 +168,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
     }
     
     private static func addLog(_ event: String){
-        print(event)
+        print("📣 Pushed: \(event)")
         if(UserDefaults.standard.bool(forKey: "pushedMessaging.loggerEnabled")){
             let log=UserDefaults.standard.string(forKey: "pushedMessaging.pushedLog") ?? ""
             UserDefaults.standard.set(log+"\(Date()): \(event)\n", forKey: "pushedMessaging.pushedLog")
@@ -468,6 +534,9 @@ public class PushedMessagingiOSLibrary: NSProxy {
         
         // Setup application state observers for WebSocket management
         setupApplicationStateObservers()
+
+        // Install UNUserNotificationCenter delegate proxy for deduplication
+        installNotificationCenterProxy()
     }
     
     /// Setup observers for application state changes
@@ -873,6 +942,16 @@ public class PushedMessagingiOSLibrary: NSProxy {
     @objc
     private func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
         PushedMessagingiOSLibrary.addLog("Received push notification: \(userInfo)")
+
+        // Prevent showing duplicate notifications if the same message was already received via WebSocket
+        if let incomingMsgId = userInfo["messageId"] as? String, PushedMessagingiOSLibrary.isMessageProcessed(incomingMsgId) {
+            PushedMessagingiOSLibrary.addLog("Duplicate message via APNs detected (messageId: \(incomingMsgId)). Skipping display and removing local WS notification.")
+            // Remove possible local notification scheduled by WebSocket with same identifier
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [incomingMsgId])
+            UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [incomingMsgId])
+            PushedMessagingiOSLibrary.redirectMessage(application, in: self, userInfo: userInfo, fetchCompletionHandler: completionHandler)
+            return
+        }
         
         // Only process push notification if APNS is enabled
         guard PushedMessagingiOSLibrary.isAPNSEnabled else {
@@ -895,6 +974,11 @@ public class PushedMessagingiOSLibrary: NSProxy {
         
         if let messageId = userInfo["messageId"] as? String {
             PushedMessagingiOSLibrary.addLog("Processing message with ID: \(messageId)")
+
+            // Mark message as processed to prevent duplicate display via WebSocket
+            PushedMessagingiOSLibrary.markMessageProcessed(messageId)
+            PushedMessagingiOSLibrary.addLog("[Dedup] messageId \(messageId) marked as processed from APNs path")
+
             let alertBody = (userInfo["aps"] as? [AnyHashable: Any])?["alert"]
             let alerts = UserDefaults.standard.bool(forKey: "pushedMessaging.alertEnabled")
             
@@ -914,6 +998,14 @@ public class PushedMessagingiOSLibrary: NSProxy {
         PushedMessagingiOSLibrary.addLog("Pushed token")
     }
     
+    private static func installNotificationCenterProxy() {
+        let center = UNUserNotificationCenter.current()
+        if notificationCenterProxy == nil {
+            notificationCenterProxy = NotificationCenterProxy(original: center.delegate)
+            center.delegate = notificationCenterProxy
+            addLog("NotificationCenter proxy installed for deduplication")
+        }
+    }
     
 }
 

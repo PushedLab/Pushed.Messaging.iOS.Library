@@ -138,6 +138,16 @@ public class PushedWebSocketClient: NSObject, WebSocketDelegate {
             Self.addLog("Message without messageId received.")
             return
         }
+
+        // Deduplication against previously received APNs notifications
+        if PushedMessagingiOSLibrary.isMessageProcessed(messageId) {
+            Self.addLog("Duplicate message already processed via APNs. Ignoring WebSocket push (messageId: \(messageId))")
+            return
+        }
+
+        // Mark as processed so APNs duplicate won't be shown later
+        PushedMessagingiOSLibrary.markMessageProcessed(messageId)
+        Self.addLog("[Dedup] messageId \(messageId) marked as processed from WebSocket path")
         
         if messageId == lastMessageId {
             Self.addLog("Duplicate message ignored: \(messageId)")
@@ -150,12 +160,12 @@ public class PushedWebSocketClient: NSObject, WebSocketDelegate {
         let mfTraceId = json["mfTraceId"] as? String ?? ""
         
         let handled = onMessageReceived?(messageString) ?? false
-        
+
         if handled {
             Self.addLog("Message handled by custom handler.")
         } else {
             Self.addLog("Showing background notification for message: \(messageId)")
-            showBackgroundNotification(json)
+            showBackgroundNotification(json, identifier: messageId)
         }
         
         confirmWebSocketMessage(messageId: messageId, mfTraceId: mfTraceId)
@@ -177,7 +187,7 @@ public class PushedWebSocketClient: NSObject, WebSocketDelegate {
         }
     }
 
-    private func showBackgroundNotification(_ messageData: [String: Any]) {
+    private func showBackgroundNotification(_ messageData: [String: Any], identifier: String) {
         DispatchQueue.main.async {
             UNUserNotificationCenter.current().getNotificationSettings { settings in
                 guard settings.authorizationStatus == .authorized else {
@@ -196,13 +206,18 @@ public class PushedWebSocketClient: NSObject, WebSocketDelegate {
                     }
                 } else {
                     content.title = "New Message"
-                    content.body = "You have a new message via WebSocket."
+                    // Use plain data string as body if available
+                    if let bodyString = messageData["data"] as? String, !bodyString.isEmpty {
+                        content.body = bodyString
+                    } else {
+                        content.body = "You have a new message via WebSocket."
+                    }
                     content.sound = .default
                 }
                 
                 content.userInfo = messageData
                 
-                let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+                let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
                 
                 UNUserNotificationCenter.current().add(request) { error in
                     if let error = error {

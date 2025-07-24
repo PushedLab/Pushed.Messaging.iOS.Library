@@ -14,7 +14,7 @@
 		607FACE01AFB9204008FA782 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDE1AFB9204008FA782 /* LaunchScreen.xib */; };
 		607FACEC1AFB9204008FA782 /* Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACEB1AFB9204008FA782 /* Tests.swift */; };
 		A89CA3D82DF6F0ED00AE7760 /* AppNotiService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A89CA3D02DF6F0ED00AE7760 /* AppNotiService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		A8E982972E3109A100B397D8 /* PushedMessagingiOSLibrary in Frameworks */ = {isa = PBXBuildFile; productRef = A8E982962E3109A100B397D8 /* PushedMessagingiOSLibrary */; };
+		A8F341E22E324EBD006A4669 /* PushedMessagingiOSLibrary in Frameworks */ = {isa = PBXBuildFile; productRef = A8F341E12E324EBD006A4669 /* PushedMessagingiOSLibrary */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -85,7 +85,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A8E982972E3109A100B397D8 /* PushedMessagingiOSLibrary in Frameworks */,
+				A8F341E22E324EBD006A4669 /* PushedMessagingiOSLibrary in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -290,7 +290,7 @@
 			);
 			mainGroup = 607FACC71AFB9204008FA782;
 			packageReferences = (
-				A8E982952E3109A100B397D8 /* XCLocalSwiftPackageReference "../../Pushed.Messaging.iOS.Library" */,
+				A844FE992E3236B700138E51 /* XCLocalSwiftPackageReference "../../Pushed.Messaging.iOS.Library" */,
 			);
 			productRefGroup = 607FACD11AFB9204008FA782 /* Products */;
 			projectDirPath = "";
@@ -706,14 +706,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		A8E982952E3109A100B397D8 /* XCLocalSwiftPackageReference "../../Pushed.Messaging.iOS.Library" */ = {
+		A844FE992E3236B700138E51 /* XCLocalSwiftPackageReference "../../Pushed.Messaging.iOS.Library" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../Pushed.Messaging.iOS.Library;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		A8E982962E3109A100B397D8 /* PushedMessagingiOSLibrary */ = {
+		A8F341E12E324EBD006A4669 /* PushedMessagingiOSLibrary */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = PushedMessagingiOSLibrary;
 		};

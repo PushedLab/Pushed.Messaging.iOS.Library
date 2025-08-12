@@ -1,6 +1,7 @@
 import UserNotifications
 import Foundation
 import Security
+import PushedMessagingiOSLibrary
 
 @objc(NotificationService)
 class NotificationService: UNNotificationServiceExtension {
@@ -20,21 +21,14 @@ class NotificationService: UNNotificationServiceExtension {
             return
         }
 
-        NSLog("[Extension] didReceiveNotificationRequest called with userInfo: \(request.content.userInfo)")
-
-        // Check if APNS is enabled (reading from UserDefaults)
-        let isAPNSEnabled = UserDefaults.standard.bool(forKey: "pushedMessaging.alertEnabled")
-        NSLog("[Extension] isAPNSEnabled: \(isAPNSEnabled)")                
-        if isAPNSEnabled {
-            // APNS enabled - process message confirmation
-            if let messageId = request.content.userInfo["messageId"] as? String {
-                NSLog("[Extension] APNS enabled - confirming message with ID: \(messageId)")
-                confirmMessage(messageId: messageId)
-            } else {
-                NSLog("[Extension] APNS enabled but no messageId found for confirmation")
-            }
+                NSLog("[Extension] didReceiveNotificationRequest")
+        
+        // Always attempt message delivery confirmation
+        if let messageId = request.content.userInfo["messageId"] as? String {
+            NSLog("[Extension] Confirming message delivery with ID: \(messageId)")
+            PushedMessagingiOSLibrary.confirmDelivery(messageId: messageId)
         } else {
-            NSLog("[Extension] APNS disabled - skipping message confirmation")
+            NSLog("[Extension] No messageId found – cannot confirm delivery")
         }
 
         // Always send the content to system
@@ -52,7 +46,7 @@ class NotificationService: UNNotificationServiceExtension {
 
     // MARK: - Keychain Access Methods
     
-    /// Получение токена из Keychain
+    /// Получение токена pushed из Keychain
     private func getTokenFromKeychain() -> String? {
         var query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
@@ -77,60 +71,6 @@ class NotificationService: UNNotificationServiceExtension {
     }
 
     private func confirmMessage(messageId: String) {
-        NSLog("[Extension Confirm] Starting message confirmation for messageId: \(messageId)")
-        
-        // Получаем токен только из Keychain
-        guard let clientToken = getTokenFromKeychain(), !clientToken.isEmpty else {
-            NSLog("[Extension Confirm] ERROR: clientToken is empty or not found in Keychain")
-            return
-        }
-        
-        NSLog("[Extension Confirm] Using client token for authentication")
-        
-        // Создаем Basic Auth: clientToken:messageId
-        let credentials = "\(clientToken):\(messageId)"
-        guard let credentialsData = credentials.data(using: .utf8) else {
-            NSLog("[Extension Confirm] ERROR: Could not encode credentials")
-            return
-        }
-        let basicAuth = "Basic \(credentialsData.base64EncodedString())"
-        
-        // Используем эндпоинт v2 из основной библиотеки для консистентности
-        guard let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns") else {
-            NSLog("[Extension Confirm] ERROR: Invalid URL")
-            return
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue(basicAuth, forHTTPHeaderField: "Authorization")
-        
-        NSLog("[Extension Confirm] Sending confirmation request to: \(url.absoluteString)")
-        
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                NSLog("[Extension Confirm] Request error: \(error.localizedDescription)")
-                return
-            }
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                NSLog("[Extension Confirm] ERROR: No HTTPURLResponse")
-                return
-            }
-            
-            let status = httpResponse.statusCode
-            let responseBody = data.flatMap { String(data: $0, encoding: .utf8) } ?? "<no body>"
-            
-            if (200..<300).contains(status) {
-                NSLog("[Extension Confirm] SUCCESS - Status: \(status), Body: \(responseBody)")
-            } else {
-                NSLog("[Extension Confirm] ERROR - Status: \(status), Body: \(responseBody)")
-            }
-        }
-        
-        task.resume()
-        NSLog("[Extension Confirm] Confirmation request sent for messageId: \(messageId)")
+        PushedMessagingiOSLibrary.confirmDelivery(messageId: messageId)
     }
 } 

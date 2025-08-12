@@ -65,14 +65,23 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Настройка делегата для уведомлений
         UNUserNotificationCenter.current().delegate = self
         
-        // Инициализация библиотеки
-        PushedMessagingiOSLibrary.setup(self, askPermissions: true, loggerEnabled: true)
-        
-        // Включение WebSocket (опционально, для iOS 13.0+)
-        if PushedMessagingiOSLibrary.isWebSocketAvailable {
-            PushedMessagingiOSLibrary.enableWebSocket()
-            setupWebSocketCallbacks()
-        }
+// Инициализация библиотеки
+// Режимы:
+// - useAPNS: true + enableWebSocket: true   → APNS + WebSocket (оба канала)
+// - useAPNS: false + enableWebSocket: true  → Только WebSocket (без APNS)
+// - useAPNS: true + enableWebSocket: false  → Только APNS
+PushedMessagingiOSLibrary.setup(
+    self,
+    askPermissions: true,
+    loggerEnabled: true,
+    useAPNS: true,
+    enableWebSocket: true
+)
+
+// Дополнительно: настройка коллбеков WebSocket (для iOS 13.0+)
+if PushedMessagingiOSLibrary.isWebSocketAvailable {
+    setupWebSocketCallbacks()
+}
         
         return true
     }
@@ -267,11 +276,9 @@ if PushedMessagingiOSLibrary.isWebSocketAvailable {
 ### Управление соединением
 
 ```swift
-// Включить WebSocket
-PushedMessagingiOSLibrary.enableWebSocket()
-
-// Отключить WebSocket
-PushedMessagingiOSLibrary.disableWebSocket()
+// Включить/отключить WebSocket на лету
+PushedMessagingiOSLibrary.enableWebSocket()   // эквивалентно enableWebSocket: true
+PushedMessagingiOSLibrary.disableWebSocket()  
 
 // Проверить статус
 let status = PushedMessagingiOSLibrary.webSocketStatus
@@ -301,25 +308,30 @@ print("APNS enabled: \(isEnabled)")
 
 **Полный режим (APNS + WebSocket):**
 ```swift
-// Включить оба канала доставки
+// Через setup:
+PushedMessagingiOSLibrary.setup(self, useAPNS: true, enableWebSocket: true)
+
+// Или включить на лету:
 PushedMessagingiOSLibrary.enableAPNS()
-if PushedMessagingiOSLibrary.isWebSocketAvailable {
-    PushedMessagingiOSLibrary.enableWebSocket()
-}
+if PushedMessagingiOSLibrary.isWebSocketAvailable { PushedMessagingiOSLibrary.enableWebSocket() }
 ```
 
 **Только WebSocket (без push-уведомлений):**
 ```swift
-// Отключить APNS, оставить только WebSocket
+// Через setup:
+PushedMessagingiOSLibrary.setup(self, useAPNS: false, enableWebSocket: true)
+
+// Или переключить на лету:
 PushedMessagingiOSLibrary.disableAPNS()
-if PushedMessagingiOSLibrary.isWebSocketAvailable {
-    PushedMessagingiOSLibrary.enableWebSocket()
-}
+if PushedMessagingiOSLibrary.isWebSocketAvailable { PushedMessagingiOSLibrary.enableWebSocket() }
 ```
 
 **Только APNS (классический режим):**
 ```swift
-// Отключить WebSocket, оставить только APNS
+// Через setup:
+PushedMessagingiOSLibrary.setup(self, useAPNS: true, enableWebSocket: false)
+
+// Или переключить на лету:
 PushedMessagingiOSLibrary.enableAPNS()
 PushedMessagingiOSLibrary.disableWebSocket()
 ```
@@ -422,8 +434,8 @@ PushedMessagingiOSLibrary.onWebSocketMessageReceived = { messageJson in
 // Отключить дублирование подтверждений (если используется Extension)
 PushedMessagingiOSLibrary.extensionHandlesConfirmation = true
 
-// Включить подробное логирование
-PushedMessagingiOSLibrary.setup(self, loggerEnabled: true)
+// Включить подробное логирование (пример):
+PushedMessagingiOSLibrary.setup(self, askPermissions: true, loggerEnabled: true, useAPNS: true, enableWebSocket: false)
 ```
 
 ### Очистка данных (для тестирования)

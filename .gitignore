@@ -18,6 +18,30 @@ DerivedData
 *.hmap
 *.ipa
 
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode workspace state
+*.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+# SPM/Xcode intermediate artifacts
+**/.swiftmodule
+**/*.swiftmodule
+**/*.swiftdoc
+**/*.swiftinterface
+**/*.abi.json
+**/*.swiftsourceinfo
+**/build.db
+**/description.json
+**/workspace-state.json
+**/debug.yaml
+
 # Bundler
 .bundle
 

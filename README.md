@@ -65,23 +65,15 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Настройка делегата для уведомлений
         UNUserNotificationCenter.current().delegate = self
         
-// Инициализация библиотеки
+// Инициализация библиотеки (упрощённый вызов)
 // Режимы:
 // - useAPNS: true + enableWebSocket: true   → APNS + WebSocket (оба канала)
 // - useAPNS: false + enableWebSocket: true  → Только WebSocket (без APNS)
 // - useAPNS: true + enableWebSocket: false  → Только APNS
-PushedMessagingiOSLibrary.setup(
-    self,
-    askPermissions: true,
-    loggerEnabled: true,
-    useAPNS: true,
-    enableWebSocket: true
-)
+PushedMessagingiOSLibrary.setup(self, useAPNS: true, enableWebSocket: true)
 
-// Дополнительно: настройка коллбеков WebSocket (для iOS 13.0+)
-if PushedMessagingiOSLibrary.isWebSocketAvailable {
-    setupWebSocketCallbacks()
-}
+// Дополнительно: настройка коллбеков WebSocket (iOS 13.0+)
+if PushedMessagingiOSLibrary.isWebSocketAvailable { setupWebSocketCallbacks() }
         
         return true
     }
@@ -162,13 +154,13 @@ PushedMessagingiOSLibrary.refreshTokenWithApplicationId("YOUR_APPLICATION_ID")
 #### Создание Extension
 
 1. В Xcode: File → New → Target → Notification Service Extension
-2. Замените содержимое `NotificationService.swift`:
+2. Замените содержимое `NotificationService.swift` на актуальную реализацию:
 
 ```swift
 import UserNotifications
 import Foundation
-import Security
 
+@objc(NotificationService)
 class NotificationService: UNNotificationServiceExtension {
 
     var contentHandler: ((UNNotificationContent) -> Void)?
@@ -183,9 +175,9 @@ class NotificationService: UNNotificationServiceExtension {
             return
         }
 
-        // Подтверждение получения сообщения
+        // Подтверждение доставки сообщения через библиотеку
         if let messageId = request.content.userInfo["messageId"] as? String {
-            confirmMessage(messageId: messageId)
+            PushedMessagingiOSLibrary.confirmDelivery(messageId: messageId)
         }
 
         contentHandler(bestAttemptContent)
@@ -197,43 +189,7 @@ class NotificationService: UNNotificationServiceExtension {
         }
     }
 
-    private func confirmMessage(messageId: String) {
-        guard let clientToken = getTokenFromKeychain(), !clientToken.isEmpty else {
-            return
-        }
-
-        let credentials = "\(clientToken):\(messageId)"
-        guard let credentialsData = credentials.data(using: .utf8) else { return }
-        let basicAuth = "Basic \(credentialsData.base64EncodedString())"
-
-        guard let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns") else { return }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(basicAuth, forHTTPHeaderField: "Authorization")
-
-        URLSession.shared.dataTask(with: request).resume()
-    }
-
-    private func getTokenFromKeychain() -> String? {
-        let query: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrAccount: "pushed_token",
-            kSecAttrService: "pushed_messaging_service",
-            kSecReturnData: true,
-            kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlock
-        ]
-
-        var ref: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &ref)
-
-        guard status == errSecSuccess, let data = ref as? Data else {
-            return nil
-        }
-
-        return String(data: data, encoding: .utf8)
-    }
+    // Дополнительный код не требуется — библиотека выполнит подтверждение
 }
 ```
 
@@ -365,50 +321,29 @@ PushedMessagingiOSLibrary.onWebSocketMessageReceived = { messageJson in
 ### Основные методы
 
 ```swift
-// Инициализация библиотеки
-PushedMessagingiOSLibrary.setup(_ appDelegate: UIApplicationDelegate, 
-                                askPermissions: Bool = true, 
-                                loggerEnabled: Bool = false)
+// Инициализация библиотеки (упрощённая форма)
+PushedMessagingiOSLibrary.setup(_ appDelegate: UIApplicationDelegate,
+                                useAPNS: Bool,
+                                enableWebSocket: Bool)
+
+// Инициализация (расширенная форма с дополнительными опциями)
+PushedMessagingiOSLibrary.setup(_ appDelegate: UIApplicationDelegate,
+                                askPermissions: Bool = true,
+                                loggerEnabled: Bool = false,
+                                useAPNS: Bool = true,
+                                enableWebSocket: Bool = false)
 
 // Получение клиентского токена
 let token = PushedMessagingiOSLibrary.clientToken
 
-// Подтверждение сообщения
+// Подтверждение сообщения по клику
 PushedMessagingiOSLibrary.confirmMessage(_ response: UNNotificationResponse)
 
-// Запрос разрешений на уведомления
+// Запрос разрешений на уведомления (если нужно вручную)
 PushedMessagingiOSLibrary.requestNotificationPermissions()
 
 // Получение логов (для отладки)
 let logs = PushedMessagingiOSLibrary.getLog()
-```
-
-### WebSocket методы (iOS 13.0+)
-
-```swift
-// Проверка доступности
-let isAvailable = PushedMessagingiOSLibrary.isWebSocketAvailable
-
-// Управление соединением
-PushedMessagingiOSLibrary.enableWebSocket()
-PushedMessagingiOSLibrary.disableWebSocket()
-
-// Статус соединения
-let status = PushedMessagingiOSLibrary.webSocketStatus
-
-// Диагностика
-let diagnostics = PushedMessagingiOSLibrary.getWebSocketDiagnostics()
-```
-
-### APNS методы
-
-```swift
-// Управление APNS
-PushedMessagingiOSLibrary.enableAPNS()
-PushedMessagingiOSLibrary.disableAPNS()
-
-// Проверка статуса APNS
-let isEnabled = PushedMessagingiOSLibrary.isAPNSEnabled
 ```
 
 ### Callback'и

@@ -19,11 +19,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         PushedMessagingiOSLibrary.extensionHandlesConfirmation = true
         
         // Setup Pushed Library
-        PushedMessagingiOSLibrary.setup(self) 
-
-        PushedMessagingiOSLibrary.enableWebSocket() 
-
-        PushedMessagingiOSLibrary.enableAPNS()
+        // Change these flags to test different modes:
+        // - useAPNS: true + enableWebSocket: true = Both APNS and WebSocket
+        // - useAPNS: false + enableWebSocket: true = WebSocket only (no APNS)
+        // - useAPNS: true + enableWebSocket: false = APNS only (no WebSocket)
+        PushedMessagingiOSLibrary.setup(
+            self, 
+            useAPNS: false, 
+            enableWebSocket: true
+        )
 
         PushedMessagingiOSLibrary.onWebSocketMessageReceived = { messageJson in
             print("Received WebSocket message: \(messageJson)")

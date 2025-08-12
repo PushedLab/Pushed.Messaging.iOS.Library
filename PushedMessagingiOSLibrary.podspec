@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'PushedMessagingiOSLibrary'
-  s.version          = '1.0.6'
+  s.version          = '1.0.7'
   s.summary          = 'Pushed Messaging iOS Library.'
 
 # This description is used to generate tags and improve search results.
@@ -41,4 +41,6 @@ TODO: Add long description of the pod here.
   # s.dependency 'AFNetworking', '~> 2.3'
   # Зависимость от Starscream для WebSocket (iOS 13+)
   s.dependency 'Starscream', '~> 4.0'
+  # Зависимость от DeviceKit (используется внутри SDK)
+  s.dependency 'DeviceKit', '~> 5.0'
 end

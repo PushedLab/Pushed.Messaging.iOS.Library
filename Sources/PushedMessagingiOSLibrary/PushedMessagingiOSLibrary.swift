@@ -56,7 +56,7 @@ private let kPushedAppGroupIdentifier = "group.ru.pushed.messaging"
 public class PushedMessagingiOSLibrary: NSProxy {
     
     private static var pushedToken: String?
-    private static let sdkVersion = "iOS Native 1.0.1"
+    private static let sdkVersion = "iOS Native 1.0.9"
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
     
     // Services

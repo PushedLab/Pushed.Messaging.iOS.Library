@@ -188,11 +188,16 @@ public class PushedService {
     /// Handle application entering background
     private func handleAppDidEnterBackground() {
         if isEnabled {
-            // Keep connection open while background task is active (~30s)
-            addLog("Keeping WebSocket alive during extra background time")
+            let isAPNSEnabled = PushedMessagingiOSLibrary.isAPNSEnabled
+            if !isAPNSEnabled {
+                addLog("APNs disabled - keeping WebSocket alive as long as possible in background")
+            } else {
+                addLog("APNs enabled - keeping WebSocket alive during extra background time")
+            }
         }
         
         // Request ~30s extra execution so socket can stay alive a bit longer
+        // This is especially important when APNs is disabled
         startShortBackgroundExecution()
     }
     
@@ -246,7 +251,12 @@ public class PushedService {
         
         extraBgTask = UIApplication.shared.beginBackgroundTask(withName: "PushedWS") { [weak self] in
             // Expiration handler — iOS is about to suspend us; clean up.
-            self?.addLog("Short BGTask expired – stopping WebSocket connection")
+            let isAPNSEnabled = PushedMessagingiOSLibrary.isAPNSEnabled
+            if isAPNSEnabled {
+                self?.addLog("Background task expired - stopping WebSocket (APNs will handle notifications)")
+            } else {
+                self?.addLog("Background task expired - forced to stop WebSocket (no APNs fallback available)")
+            }
             self?.stopConnection()
             self?.endShortBackgroundExecution()
         }
@@ -367,8 +377,14 @@ private extension PushedService {
         }
         
         func prepareForBackground() {
-            addWSLog("Preparing for background - disconnecting.")
-            socket?.disconnect()
+            let isAPNSEnabled = PushedMessagingiOSLibrary.isAPNSEnabled
+            if isAPNSEnabled {
+                addWSLog("Preparing for background - disconnecting (APNs will handle notifications).")
+                socket?.disconnect()
+            } else {
+                addWSLog("Preparing for background - keeping connection alive (APNs disabled).")
+                // Don't disconnect - keep WebSocket alive to receive notifications
+            }
         }
         
         func restoreFromBackground() {
@@ -442,30 +458,40 @@ private extension PushedService {
                 return
             }
             
-            // Mark as processed so APNs duplicate won't be shown later
-            PushedMessagingiOSLibrary.markMessageProcessed(messageId)
-            addWSLog("[Dedup] messageId \(messageId) marked as processed from WebSocket path")
-            
             if messageId == lastMessageId {
                 addWSLog("Duplicate message ignored: \(messageId)")
                 return
             }
             
-            lastMessageId = messageId
-            UserDefaults.standard.set(messageId, forKey: "pushedMessaging.lastMessageId")
-            
             let mfTraceId = json["mfTraceId"] as? String ?? ""
-            
             let handled = onMessageReceived?(messageString) ?? false
             
             if handled {
                 addWSLog("Message handled by custom handler.")
+                PushedMessagingiOSLibrary.markMessageProcessed(messageId)
+                confirmWebSocketMessage(messageId: messageId, mfTraceId: mfTraceId)
+                lastMessageId = messageId
+                UserDefaults.standard.set(messageId, forKey: "pushedMessaging.lastMessageId")
             } else {
-                addWSLog("Showing background notification for message: \(messageId)")
-                showBackgroundNotification(json, identifier: messageId)
+                // Check if we should show notification based on app state and APNs status
+                let isAPNSEnabled = PushedMessagingiOSLibrary.isAPNSEnabled
+                let shouldShowNotification = UIApplication.shared.applicationState != .background || !isAPNSEnabled
+                
+                if shouldShowNotification {
+                    if UIApplication.shared.applicationState != .background {
+                        addWSLog("App is active, showing local notification for message: \(messageId)")
+                    } else {
+                        addWSLog("App is in background but APNs is disabled, showing WebSocket notification for message: \(messageId)")
+                    }
+                    PushedMessagingiOSLibrary.markMessageProcessed(messageId)
+                    showBackgroundNotification(json, identifier: messageId)
+                    confirmWebSocketMessage(messageId: messageId, mfTraceId: mfTraceId)
+                    lastMessageId = messageId
+                    UserDefaults.standard.set(messageId, forKey: "pushedMessaging.lastMessageId")
+                } else {
+                    addWSLog("App is in background and APNs is enabled, suppressing notification from WebSocket. Waiting for APNs.")
+                }
             }
-            
-            confirmWebSocketMessage(messageId: messageId, mfTraceId: mfTraceId)
         }
         
         private func confirmWebSocketMessage(messageId: String, mfTraceId: String) {

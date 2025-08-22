@@ -339,12 +339,13 @@ private extension PushedService {
         }
         
         private func setupWebSocket() {
-            guard let url = URL(string: "wss://sub.multipushed.ru/v2/open-websocket/\(token)") else {
+            guard let url = URL(string: "wss://sub.multipushed.ru/v3/open-websocket") else {
                 addWSLog("Invalid WebSocket URL")
                 return
             }
             
             var request = URLRequest(url: url)
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.timeoutInterval = 10
             
             socket = WebSocket(request: request)

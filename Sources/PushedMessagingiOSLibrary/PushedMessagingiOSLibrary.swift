@@ -3,7 +3,7 @@ import UIKit
 import UserNotifications
 import BackgroundTasks
 import DeviceKit
-
+import CommonCrypto
 
 private typealias IsPushedInited = @convention(c) (Any, Selector, String) -> Void
 private typealias ApplicationRemoteNotification = @convention(c) (Any, Selector, UIApplication, [AnyHashable : Any], @escaping (UIBackgroundFetchResult) -> Void) -> Void
@@ -115,6 +115,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
     }
 
     private static var notificationCenterProxy: NotificationCenterProxy?
+    private static let mainKey = "Rt9n4BbW7Y97fhUkyygddZ8sr8xPNYaU"
 
     // MARK: - Message Deduplication
 
@@ -240,7 +241,56 @@ public class PushedMessagingiOSLibrary: NSProxy {
         refreshPushedToken(in: nil, apnsToken: tokenToUse, applicationId: applicationId)
     }
 
+    private static func aesEncrypty(_ message:String,key:String,ivkey:String, operation:Int) -> String? {
+        var data = message.data(using: .utf8)!
+        if operation == kCCDecrypt{
+            data=Data(base64Encoded: message)!
+        }
+        let ivData  = ivkey.data(using: .utf8)!
+        let keyData = key.data(using: .utf8)!
+        let cryptLength  = size_t(data.count+kCCBlockSizeAES128)
+        var cryptData = Data(count:cryptLength)
+        let keyLength = size_t(kCCKeySizeAES128)
+        let options   = CCOptions(kCCOptionPKCS7Padding)
+        var numBytesEncrypted :size_t = 0
+        let cryptStatus = cryptData.withUnsafeMutableBytes {cryptBytes in
+            data.withUnsafeBytes {dataBytes in
+                ivData.withUnsafeBytes {ivBytes in
+                    keyData.withUnsafeBytes {keyBytes in
+                        CCCrypt(CCOperation(operation),
+                                CCAlgorithm(kCCAlgorithmAES),
+                                options,
+                                keyBytes, keyLength,
+                                ivBytes,
+                                dataBytes, data.count,
+                                cryptBytes, cryptLength,
+                                &numBytesEncrypted)
+                        }
+                    }
+                }
+            }
+
+            if UInt32(cryptStatus) == UInt32(kCCSuccess) {
+                cryptData.removeSubrange(numBytesEncrypted..<cryptData.count)
+
+            } else {
+                addLog("🔍 DEBUG: error")
+                return nil
+            }
+        
+        if operation == kCCDecrypt{
+            return String(data: cryptData, encoding: .utf8)
+        }
+        return cryptData.base64EncodedString()
+
+    }
     private static func saveSecToken(_ token:String)->Bool{
+        addLog("🔍 DEBUG: Save sec token")
+        var secToken=aesEncrypty("encrypted:\(token)", key: mainKey, ivkey: "xjPamAwc7QLYQkhm", operation: kCCEncrypt)
+        if secToken==nil {
+            addLog("🔍 DEBUG: nil token")
+           secToken=token
+        }
         var query: [CFString: Any] = [kSecClass: kSecClassGenericPassword]
         query[kSecAttrAccount] = "pushed_token"
         query[kSecAttrService] = "pushed_messaging_service"
@@ -252,12 +302,13 @@ public class PushedMessagingiOSLibrary: NSProxy {
         if status == errSecSuccess {
             SecItemDelete(query as CFDictionary)
         }
-        query[kSecValueData] = token.data(using: .utf8)
+        query[kSecValueData] = secToken!.data(using: .utf8)
         status = SecItemAdd(query as CFDictionary, nil)
         return status == errSecSuccess
         
     }
     private static func getSecToken()->String?{
+        addLog("🔍 DEBUG: Get sec token")
         var query: [CFString: Any] = [kSecClass: kSecClassGenericPassword]
         query[kSecAttrAccount] = "pushed_token"
         query[kSecAttrService] = "pushed_messaging_service"
@@ -269,8 +320,16 @@ public class PushedMessagingiOSLibrary: NSProxy {
         guard status == errSecSuccess, let data = ref as? Data else {
             return nil
         }
-        
-        return String(data: data, encoding: .utf8)
+        let token = String(data: data, encoding: .utf8)
+        addLog("🔍 DEBUG: Raw token: \(token)")
+        var secToken=aesEncrypty(token!, key: mainKey, ivkey: "xjPamAwc7QLYQkhm", operation: kCCDecrypt)
+        if(secToken != nil && secToken!.starts(with: "encrypted:")){
+            addLog("🔍 DEBUG: decrypted token: \(secToken)")
+            return secToken!.replacingOccurrences(of: "encrypted:", with: "")
+        }
+        addLog("🔍 DEBUG: token not encrypted")
+        saveSecToken(token!)
+        return token
     }
 
     private static func refreshPushedToken(in object: AnyObject?, apnsToken: String?, applicationId: String? = nil){

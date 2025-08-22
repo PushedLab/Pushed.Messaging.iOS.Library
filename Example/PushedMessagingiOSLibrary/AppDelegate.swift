@@ -25,7 +25,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // - useAPNS: true + enableWebSocket: false = APNS only (no WebSocket)
         PushedMessagingiOSLibrary.setup(
             self, 
-            useAPNS: false, 
+            useAPNS: true, 
             enableWebSocket: true
         )
 

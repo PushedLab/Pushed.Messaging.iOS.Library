@@ -15,7 +15,6 @@ class NotificationService: UNNotificationServiceExtension {
     ) {
         self.contentHandler = contentHandler
         bestAttemptContent = request.content.mutableCopy() as? UNMutableNotificationContent
-
         guard let bestAttemptContent else {
             contentHandler(request.content)
             return
@@ -47,7 +46,7 @@ class NotificationService: UNNotificationServiceExtension {
     // MARK: - Keychain Access Methods
     
     /// Получение токена pushed из Keychain
-    private func getTokenFromKeychain() -> String? {
+    /*private func getTokenFromKeychain() -> String? {
         var query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrAccount: "pushed_token",
@@ -68,7 +67,7 @@ class NotificationService: UNNotificationServiceExtension {
         let token = String(data: data, encoding: .utf8)
         NSLog("[Extension Keychain] Successfully retrieved token from Keychain")
         return token
-    }
+    }*/
 
     private func confirmMessage(messageId: String) {
         PushedMessagingiOSLibrary.confirmDelivery(messageId: messageId)

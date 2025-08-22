@@ -15,6 +15,7 @@
 		607FACEC1AFB9204008FA782 /* Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACEB1AFB9204008FA782 /* Tests.swift */; };
 		A89CA3D82DF6F0ED00AE7760 /* AppNotiService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A89CA3D02DF6F0ED00AE7760 /* AppNotiService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A8F341E22E324EBD006A4669 /* PushedMessagingiOSLibrary in Frameworks */ = {isa = PBXBuildFile; productRef = A8F341E12E324EBD006A4669 /* PushedMessagingiOSLibrary */; };
+		F4BCA39D2E5624AE0045A2C6 /* PushedMessagingiOSLibrary in Frameworks */ = {isa = PBXBuildFile; productRef = F4BCA39C2E5624AE0045A2C6 /* PushedMessagingiOSLibrary */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -100,6 +101,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F4BCA39D2E5624AE0045A2C6 /* PushedMessagingiOSLibrary in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -495,13 +497,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PushedMessagingiOSLibrary_Example.entitlements;
+				CURRENT_PROJECT_VERSION = 37;
 				DEVELOPMENT_TEAM = TGX69G64CM;
 				INFOPLIST_FILE = PushedMessagingiOSLibrary/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 12;
+				IPHONEOS_DEPLOYMENT_TARGET = 13;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.0;
 				MODULE_NAME = ExampleApp;
 				PRODUCT_BUNDLE_IDENTIFIER = ru.pushed.iOSPushedMessagingExample;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -515,13 +519,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PushedMessagingiOSLibrary_Example.entitlements;
+				CURRENT_PROJECT_VERSION = 37;
 				DEVELOPMENT_TEAM = TGX69G64CM;
 				INFOPLIST_FILE = PushedMessagingiOSLibrary/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 12;
+				IPHONEOS_DEPLOYMENT_TARGET = 13;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.0;
 				MODULE_NAME = ExampleApp;
 				PRODUCT_BUNDLE_IDENTIFIER = ru.pushed.iOSPushedMessagingExample;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -543,7 +549,7 @@
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = Tests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 12;
+				IPHONEOS_DEPLOYMENT_TARGET = 13;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -566,7 +572,7 @@
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = Tests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 12;
+				IPHONEOS_DEPLOYMENT_TARGET = 13;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -595,7 +601,7 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CODE_SIGN_ENTITLEMENTS = AppNotiService/AppNotiService.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 37;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = TGX69G64CM;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -638,7 +644,7 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CODE_SIGN_ENTITLEMENTS = AppNotiService/AppNotiService.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 37;
 				DEVELOPMENT_TEAM = TGX69G64CM;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -715,6 +721,11 @@
 /* Begin XCSwiftPackageProductDependency section */
 		A8F341E12E324EBD006A4669 /* PushedMessagingiOSLibrary */ = {
 			isa = XCSwiftPackageProductDependency;
+			productName = PushedMessagingiOSLibrary;
+		};
+		F4BCA39C2E5624AE0045A2C6 /* PushedMessagingiOSLibrary */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A844FE992E3236B700138E51 /* XCLocalSwiftPackageReference "../../Pushed.Messaging.iOS.Library" */;
 			productName = PushedMessagingiOSLibrary;
 		};
 /* End XCSwiftPackageProductDependency section */

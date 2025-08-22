@@ -1,6 +1,15 @@
 {
-  "originHash" : "a41d70b38b0e4a2b72d04ebff30bfbb746c98971b606b6ec6b289c538c8e93be",
+  "originHash" : "f0385dc974be3d67631f8ca2ddc4b9950d217434c88bfe88d891f15a9737770f",
   "pins" : [
+    {
+      "identity" : "devicekit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/devicekit/DeviceKit.git",
+      "state" : {
+        "revision" : "513b9d7e7a1bd46504a1009bbab943b75ce2f195",
+        "version" : "5.6.0"
+      }
+    },
     {
       "identity" : "starscream",
       "kind" : "remoteSourceControl",

@@ -25,9 +25,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // - useAPNS: true + enableWebSocket: false = APNS only (no WebSocket)
         PushedMessagingiOSLibrary.setup(
             self, 
-            useAPNS: true, 
+            useAPNS: false, 
             enableWebSocket: true
         )
+
+        // Enable background WebSocket BGTasks at launch so iOS can schedule
+        print("[Example] Enabling background WebSocket tasks at launch")
+        PushedMessagingiOSLibrary.enableBackgroundWebSocketTasks()
 
         PushedMessagingiOSLibrary.onWebSocketMessageReceived = { messageJson in
             print("Received WebSocket message: \(messageJson)")
@@ -38,6 +42,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
         
         return true
+    }
+
+    func applicationDidEnterBackground(_ application: UIApplication) {
+        print("[Example] applicationDidEnterBackground – scheduling BGProcessingTask")
+        PushedMessagingiOSLibrary.enableBackgroundWebSocketTasks()
+        
+        // Log pending tasks after 1 second to see what was scheduled
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            if #available(iOS 13.0, *) {
+                PushedMessagingiOSLibrary.logBackgroundTasksStatus()
+            }
+        }
+    }
+    
+    func applicationWillEnterForeground(_ application: UIApplication) {
+        print("[Example] applicationWillEnterForeground – checking BGProcessingTask status")
+        if #available(iOS 13.0, *) {
+            PushedMessagingiOSLibrary.logBackgroundTasksStatus()
+        }
     }
     
     private func requestNotificationPermissions() {

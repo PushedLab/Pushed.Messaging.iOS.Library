@@ -116,6 +116,8 @@ public class PushedMessagingiOSLibrary: NSProxy {
 
     private static var notificationCenterProxy: NotificationCenterProxy?
     private static let mainKey = "Rt9n4BbW7Y97fhUkyygddZ8sr8xPNYaU"
+    private static let bgProcessingIdentifier = "ru.pushed.messaging"
+    private static var bgTasksEnabled: Bool = true
 
     // MARK: - Message Deduplication
 
@@ -696,7 +698,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
         }
         
         if #available(iOS 13.0, *) {
-            BGTaskScheduler.shared.register(forTaskWithIdentifier: "ru.pushed.messaging", using: nil) { task in
+            BGTaskScheduler.shared.register(forTaskWithIdentifier: bgProcessingIdentifier, using: nil) { task in
                 guard let processingTask = task as? BGProcessingTask else { return }
 
                 addLog("BGTask execution started")
@@ -710,7 +712,10 @@ public class PushedMessagingiOSLibrary: NSProxy {
                 if let token = getSecToken() ?? pushedToken {
                     pushedService?.startConnection(with: token)
                 }
-    // plan next run
+                // Keep the job short; iOS prefers quick tasks. Mark complete and reschedule.
+                if bgTasksEnabled {
+                    scheduleBGProcessing()
+                }
                 processingTask.setTaskCompleted(success: true)
                 addLog("BGTask execution completed")
             }
@@ -885,7 +890,70 @@ public class PushedMessagingiOSLibrary: NSProxy {
     }
     
     /// Schedule BGProcessingTask that keeps/restarts WebSocket in background
+    @available(iOS 13.0, *)
+    private static func scheduleBGProcessing() {
+        guard bgTasksEnabled else { return }
+        let request = BGProcessingTaskRequest(identifier: bgProcessingIdentifier)
+        // Require network to allow WebSocket connection
+        request.requiresNetworkConnectivity = true
+        // Avoid requiring external power; keep flexible
+        request.requiresExternalPower = false
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            addLog("BGTask scheduled: \(bgProcessingIdentifier)")
+        } catch {
+            addLog("BGTask schedule failed: \(error.localizedDescription)")
+        }
+    }
 
+    /// Public toggles for background WebSocket processing
+    public static func enableBackgroundWebSocketTasks() {
+        bgTasksEnabled = true
+        if #available(iOS 13.0, *) {
+            scheduleBGProcessing()
+            // Log pending tasks after scheduling
+            logPendingBackgroundTasks()
+        }
+    }
+
+    public static func disableBackgroundWebSocketTasks() {
+        bgTasksEnabled = false
+        if #available(iOS 13.0, *) {
+            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: bgProcessingIdentifier)
+            addLog("BGTask cancelled: \(bgProcessingIdentifier)")
+            logPendingBackgroundTasks()
+        }
+    }
+    
+    /// Log all pending background tasks for debugging
+    @available(iOS 13.0, *)
+    private static func logPendingBackgroundTasks() {
+        BGTaskScheduler.shared.getPendingTaskRequests { requests in
+            DispatchQueue.main.async {
+                addLog("=== Pending Background Tasks ===")
+                if requests.isEmpty {
+                    addLog("No pending background tasks")
+                } else {
+                    for (index, request) in requests.enumerated() {
+                        let taskType = request is BGProcessingTaskRequest ? "BGProcessingTask" : "BGAppRefreshTask"
+                        addLog("Task \(index + 1): \(request.identifier) (\(taskType))")
+                        addLog("  - Earliest begin date: \(request.earliestBeginDate?.description ?? "nil")")
+                        if let processingRequest = request as? BGProcessingTaskRequest {
+                            addLog("  - Requires network: \(processingRequest.requiresNetworkConnectivity)")
+                            addLog("  - Requires power: \(processingRequest.requiresExternalPower)")
+                        }
+                    }
+                }
+                addLog("=== End Pending Tasks ===")
+            }
+        }
+    }
+    
+    /// Public method to manually log pending tasks
+    @available(iOS 13.0, *)
+    public static func logBackgroundTasksStatus() {
+        logPendingBackgroundTasks()
+    }
 }
 
 

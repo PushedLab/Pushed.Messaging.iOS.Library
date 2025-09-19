@@ -196,6 +196,9 @@ public class PushedService {
             }
         }
         
+        // Also schedule a BGProcessingTask to let iOS wake us for network work
+        PushedMessagingiOSLibrary.enableBackgroundWebSocketTasks()
+
         // Request ~30s extra execution so socket can stay alive a bit longer
         // This is especially important when APNs is disabled
         startShortBackgroundExecution()
@@ -219,6 +222,9 @@ public class PushedService {
             }
         }
         
+        // Foreground: optional – cancel scheduled background tasks
+        PushedMessagingiOSLibrary.disableBackgroundWebSocketTasks()
+
         // We're back to foreground — end the short background task if active
         endShortBackgroundExecution()
     }

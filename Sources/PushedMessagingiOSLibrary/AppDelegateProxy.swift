@@ -4,6 +4,7 @@ import UIKit
 // Type aliases for method signatures
 private typealias ApplicationApnsToken = @convention(c) (Any, Selector, UIApplication, Data) -> Void
 private typealias ApplicationRemoteNotification = @convention(c) (Any, Selector, UIApplication, [AnyHashable : Any], @escaping (UIBackgroundFetchResult) -> Void) -> Void
+private typealias ApplicationPerformFetch = @convention(c) (Any, Selector, UIApplication, @escaping (UIBackgroundFetchResult) -> Void) -> Void
 
 /// Handles AppDelegate method swizzling for APNS integration
 class AppDelegateProxy: NSObject {
@@ -77,6 +78,14 @@ class AppDelegateProxy: NSObject {
             withSelector: applicationRemoteNotificationSelector,
             fromClass: PushedMessagingiOSLibrary.self,
             fromSelector: #selector(PushedMessagingiOSLibrary.proxyApplication(_:didReceiveRemoteNotification:fetchCompletionHandler:)),
+            withOriginalClass: originalClass)
+
+        let applicationPerformFetchSelector = #selector(UIApplicationDelegate.application(_:performFetchWithCompletionHandler:))
+        proxyInstanceMethod(
+            toClass: subClass,
+            withSelector: applicationPerformFetchSelector,
+            fromClass: PushedMessagingiOSLibrary.self,
+            fromSelector: #selector(PushedMessagingiOSLibrary.proxyApplication(_:performFetchWithCompletionHandler:)),
             withOriginalClass: originalClass)
     }
     

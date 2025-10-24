@@ -8,6 +8,7 @@ import CommonCrypto
 private typealias IsPushedInited = @convention(c) (Any, Selector, String) -> Void
 private typealias ApplicationRemoteNotification = @convention(c) (Any, Selector, UIApplication, [AnyHashable : Any], @escaping (UIBackgroundFetchResult) -> Void) -> Void
 private typealias ApplicationApnsToken = @convention(c) (Any, Selector, UIApplication, Data) -> Void
+private typealias ApplicationPerformFetch = @convention(c) (Any, Selector, UIApplication, @escaping (UIBackgroundFetchResult) -> Void) -> Void
 
 public enum PushedServiceStatus: String {
     case connected = "Connected"
@@ -117,6 +118,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
     private static var notificationCenterProxy: NotificationCenterProxy?
     private static let mainKey = "Rt9n4BbW7Y97fhUkyygddZ8sr8xPNYaU"
     private static let bgProcessingIdentifier = "ru.pushed.messaging"
+    private static let bgRefreshIdentifier = "ru.pushed.messaging.refresh"
     private static var bgTasksEnabled: Bool = true
 
     // MARK: - Message Deduplication
@@ -384,7 +386,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
         parameters["mobileDeviceName"] = Device.current.description
 
 
-        let url = URL(string: "https://sub.multipushed.ru/v2/tokens")!
+        let url = URL(string: "https://sub.pushed.dev/v2/tokens")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -496,7 +498,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmMessage using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
+        let url = URL(string: "https://pub.pushed.dev/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -541,7 +543,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmMessageAction using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
+        let url = URL(string: "https://pub.pushed.dev/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -569,7 +571,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmMessageAction using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://api.multipushed.ru/v2/mobile-push/confirm-client-interaction?clientInteraction=\(action)")!
+        let url = URL(string: "https://api.pushed.dev/v2/mobile-push/confirm-client-interaction?clientInteraction=\(action)")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -598,7 +600,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmDelivery using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        guard let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns") else {
+        guard let url = URL(string: "https://pub.pushed.dev/v2/confirm?transportKind=Apns") else {
             addLog("Invalid URL for confirmDelivery")
             return
         }
@@ -641,6 +643,10 @@ public class PushedMessagingiOSLibrary: NSProxy {
         addLog("Start setup")
         UserDefaults.standard.setValue(loggerEnabled, forKey: "pushedMessaging.loggerEnabled")
         UserDefaults.standard.setValue(askPermissions, forKey: "pushedMessaging.askPermissions")
+        // Enable system Background Fetch at minimum interval (app must have UIBackgroundModes: fetch)
+        DispatchQueue.main.async {
+            UIApplication.shared.setMinimumBackgroundFetchInterval(UIApplication.backgroundFetchIntervalMinimum)
+        }
         
         // Save to App Group
         if let sharedDefaults = UserDefaults(suiteName: kPushedAppGroupIdentifier) {
@@ -698,6 +704,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
         }
         
         if #available(iOS 13.0, *) {
+            /* BGProcessingTask registration disabled for testing — using only BGAppRefreshTask
             BGTaskScheduler.shared.register(forTaskWithIdentifier: bgProcessingIdentifier, using: nil) { task in
                 guard let processingTask = task as? BGProcessingTask else { return }
 
@@ -718,6 +725,30 @@ public class PushedMessagingiOSLibrary: NSProxy {
                 }
                 processingTask.setTaskCompleted(success: true)
                 addLog("BGTask execution completed")
+            }
+            */
+
+            // Register BGAppRefresh task to opportunistically wake app and (re)connect WebSocket
+            BGTaskScheduler.shared.register(forTaskWithIdentifier: bgRefreshIdentifier, using: nil) { task in
+                guard let refreshTask = task as? BGAppRefreshTask else { return }
+
+                addLog("BGAppRefreshTask execution started")
+
+                refreshTask.expirationHandler = {
+                    addLog("BGAppRefreshTask expiration handler invoked - stopping WebSocket connection")
+                    pushedService?.stopConnection()
+                }
+
+                if let token = getSecToken() ?? pushedToken {
+                    pushedService?.startConnection(with: token)
+                }
+
+                // Keep it short and reschedule for future
+                if bgTasksEnabled {
+                    scheduleBGAppRefresh()
+                }
+                refreshTask.setTaskCompleted(success: true)
+                addLog("BGAppRefreshTask execution completed")
             }
 
         } else {
@@ -879,6 +910,20 @@ public class PushedMessagingiOSLibrary: NSProxy {
         // Handle notification through APNS service
         PushedMessagingiOSLibrary.apnsService?.handleRemoteNotification(application, userInfo: userInfo, fetchCompletionHandler: completionHandler)
     }
+
+    // Intercept Background Fetch and opportunistically (re)connect WebSocket
+    @objc
+    dynamic func proxyApplication(_ application: UIApplication, performFetchWithCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        PushedMessagingiOSLibrary.addLog("Proxy: performFetchWithCompletionHandler invoked")
+        // Keep work minimal; attempt to ensure WebSocket is connected if enabled
+        if #available(iOS 13.0, *) {
+            if UserDefaults.standard.bool(forKey: "pushedMessaging.webSocketEnabled"), let token = PushedMessagingiOSLibrary.getSecToken() ?? PushedMessagingiOSLibrary.clientToken {
+                PushedMessagingiOSLibrary.pushedService?.startConnection(with: token)
+            }
+        }
+        // Finish quickly; system penalizes long or failing fetches
+        completionHandler(.noData)
+    }
     
     private static func installNotificationCenterProxy() {
         let center = UNUserNotificationCenter.current()
@@ -906,11 +951,27 @@ public class PushedMessagingiOSLibrary: NSProxy {
         }
     }
 
+    /// Schedule BGAppRefreshTask to occasionally wake the app for lightweight refresh/reconnect
+    @available(iOS 13.0, *)
+    private static func scheduleBGAppRefresh() {
+        guard bgTasksEnabled else { return }
+        let request = BGAppRefreshTaskRequest(identifier: bgRefreshIdentifier)
+        // Ask iOS to run no earlier than 15 minutes from now (minimum interval is system controlled)
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            addLog("BGAppRefreshTask scheduled: \(bgRefreshIdentifier)")
+        } catch {
+            addLog("BGAppRefreshTask schedule failed: \(error.localizedDescription)")
+        }
+    }
+
     /// Public toggles for background WebSocket processing
     public static func enableBackgroundWebSocketTasks() {
         bgTasksEnabled = true
         if #available(iOS 13.0, *) {
-            scheduleBGProcessing()
+            // scheduleBGProcessing() // disabled for testing
+            scheduleBGAppRefresh()
             // Log pending tasks after scheduling
             logPendingBackgroundTasks()
         }
@@ -919,8 +980,10 @@ public class PushedMessagingiOSLibrary: NSProxy {
     public static func disableBackgroundWebSocketTasks() {
         bgTasksEnabled = false
         if #available(iOS 13.0, *) {
-            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: bgProcessingIdentifier)
-            addLog("BGTask cancelled: \(bgProcessingIdentifier)")
+            // BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: bgProcessingIdentifier) // disabled for testing
+            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: bgRefreshIdentifier)
+            // addLog("BGTask cancelled: \(bgProcessingIdentifier)")
+            addLog("BGAppRefreshTask cancelled: \(bgRefreshIdentifier)")
             logPendingBackgroundTasks()
         }
     }

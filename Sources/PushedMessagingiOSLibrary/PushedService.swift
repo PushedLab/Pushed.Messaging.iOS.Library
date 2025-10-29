@@ -4,6 +4,9 @@ import BackgroundTasks
 import Starscream
 import UserNotifications
 
+// Bridge nested enum for use in this file while keeping it inside its class
+public typealias PushedServiceStatus = PushedMessagingiOSLibrary.PushedServiceStatus
+
 /// Service responsible for managing WebSocket connections and real-time messaging
 @available(iOS 13.0, *)
 public class PushedService {

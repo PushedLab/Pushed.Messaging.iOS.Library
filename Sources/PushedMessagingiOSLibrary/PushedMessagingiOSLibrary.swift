@@ -10,11 +10,6 @@ private typealias ApplicationRemoteNotification = @convention(c) (Any, Selector,
 private typealias ApplicationApnsToken = @convention(c) (Any, Selector, UIApplication, Data) -> Void
 private typealias ApplicationPerformFetch = @convention(c) (Any, Selector, UIApplication, @escaping (UIBackgroundFetchResult) -> Void) -> Void
 
-public enum PushedServiceStatus: String {
-    case connected = "Connected"
-    case disconnected = "Disconnected"
-    case connecting = "Connecting"
-}
 
 // MARK: - Constants
 
@@ -55,7 +50,11 @@ private let kPushedAppGroupIdentifier = "group.ru.pushed.messaging"
  ```
  */
 public class PushedMessagingiOSLibrary: NSProxy {
-    
+    public enum PushedServiceStatus: String {
+        case connected = "Connected"
+        case disconnected = "Disconnected"
+        case connecting = "Connecting"
+    }
     private static var pushedToken: String?
     private static let sdkVersion = "iOS Native 1.1.1"
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"

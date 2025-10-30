@@ -18,7 +18,7 @@ class ViewController: UIViewController {
     private let maxRetryCount = 5
     
     private var clientToken: String? {
-        return PushedMessagingiOSLibrary.clientToken
+        return PushedMessaging.clientToken
     }
     
     override func viewDidLoad() {
@@ -280,14 +280,14 @@ class ViewController: UIViewController {
         print("🔍 DEBUG: Will send applicationId: \(applicationIdToUse != nil ? "YES" : "NO")")
         
         // Clear the existing token
-        PushedMessagingiOSLibrary.clearTokenForTesting()
+        PushedMessaging.clearTokenForTesting()
         
         // Reset retry count and trigger new token generation with applicationId
         retryCount = 0
         
         // Use the new method to refresh token with applicationId
         print("🔍 DEBUG: Calling refreshTokenWithApplicationId with: '\(applicationIdToUse ?? "nil")'")
-        PushedMessagingiOSLibrary.refreshTokenWithApplicationId(applicationIdToUse)
+        PushedMessaging.refreshTokenWithApplicationId(applicationIdToUse)
         
         // Note: We don't call UIApplication.shared.registerForRemoteNotifications() here
         // because it would trigger didRegisterForRemoteNotificationsWithDeviceToken

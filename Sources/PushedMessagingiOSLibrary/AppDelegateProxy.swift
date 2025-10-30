@@ -68,24 +68,24 @@ class AppDelegateProxy: NSObject {
         proxyInstanceMethod(
             toClass: subClass,
             withSelector: applicationApnsTokenSelector,
-            fromClass: PushedMessagingiOSLibrary.self,
-            fromSelector: #selector(PushedMessagingiOSLibrary.proxyApplication(_:didRegisterForRemoteNotificationsWithDeviceToken:)),
+            fromClass: PushedMessaging.self,
+            fromSelector: #selector(PushedMessaging.proxyApplication(_:didRegisterForRemoteNotificationsWithDeviceToken:)),
             withOriginalClass: originalClass)
         
         let applicationRemoteNotificationSelector = #selector(UIApplicationDelegate.application(_:didReceiveRemoteNotification:fetchCompletionHandler:))
         proxyInstanceMethod(
             toClass: subClass,
             withSelector: applicationRemoteNotificationSelector,
-            fromClass: PushedMessagingiOSLibrary.self,
-            fromSelector: #selector(PushedMessagingiOSLibrary.proxyApplication(_:didReceiveRemoteNotification:fetchCompletionHandler:)),
+            fromClass: PushedMessaging.self,
+            fromSelector: #selector(PushedMessaging.proxyApplication(_:didReceiveRemoteNotification:fetchCompletionHandler:)),
             withOriginalClass: originalClass)
 
         let applicationPerformFetchSelector = #selector(UIApplicationDelegate.application(_:performFetchWithCompletionHandler:))
         proxyInstanceMethod(
             toClass: subClass,
             withSelector: applicationPerformFetchSelector,
-            fromClass: PushedMessagingiOSLibrary.self,
-            fromSelector: #selector(PushedMessagingiOSLibrary.proxyApplication(_:performFetchWithCompletionHandler:)),
+            fromClass: PushedMessaging.self,
+            fromSelector: #selector(PushedMessaging.proxyApplication(_:performFetchWithCompletionHandler:)),
             withOriginalClass: originalClass)
     }
     

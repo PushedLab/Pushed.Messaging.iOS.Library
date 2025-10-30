@@ -18,7 +18,7 @@ private typealias ApplicationPerformFetch = @convention(c) (Any, Selector, UIApp
 private let kPushedAppGroupIdentifier = "group.ru.pushed.messaging"
 
 /**
- PushedMessagingiOSLibrary - iOS Push Messaging Library with WebSocket support
+ PushedMessaging - iOS Push Messaging Library with WebSocket support
  
  WebSocket functionality requires iOS 13.0 or later.
  Use `isWebSocketAvailable` to check if WebSocket is supported on the current device.
@@ -27,19 +27,19 @@ private let kPushedAppGroupIdentifier = "group.ru.pushed.messaging"
  
  ```swift
  // Setup the library
- PushedMessagingiOSLibrary.setup(self, askPermissions: true, loggerEnabled: true)
+ PushedMessaging.setup(self, askPermissions: true, loggerEnabled: true)
  
  // Check WebSocket availability before enabling
- if PushedMessagingiOSLibrary.isWebSocketAvailable {
+ if PushedMessaging.isWebSocketAvailable {
      // Enable WebSocket for real-time messaging
-     PushedMessagingiOSLibrary.enableWebSocket()
+     PushedMessaging.enableWebSocket()
      
      // Set up WebSocket callbacks
-     PushedMessagingiOSLibrary.onWebSocketStatusChange = { status in
+     PushedMessaging.onWebSocketStatusChange = { status in
          print("WebSocket status: \(status.rawValue)")
      }
      
-     PushedMessagingiOSLibrary.onWebSocketMessageReceived = { messageJson in
+     PushedMessaging.onWebSocketMessageReceived = { messageJson in
          print("Received WebSocket message: \(messageJson)")
          // Return true if you handled the message, false to show default notification
          return false
@@ -49,7 +49,7 @@ private let kPushedAppGroupIdentifier = "group.ru.pushed.messaging"
  }
  ```
  */
-public class PushedMessagingiOSLibrary: NSProxy {
+public class PushedMessaging: NSProxy {
     public enum PushedServiceStatus: String {
         case connected = "Connected"
         case disconnected = "Disconnected"
@@ -76,12 +76,12 @@ public class PushedMessagingiOSLibrary: NSProxy {
         // Suppress notifications already handled via WebSocket
         func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
             // Only handle deduplication if APNS is enabled
-            if PushedMessagingiOSLibrary.apnsService?.isEnabled ?? false {
+            if PushedMessaging.apnsService?.isEnabled ?? false {
                 // Differentiate between remote (APNs) and local (WebSocket) notifications
                 if notification.request.trigger is UNPushNotificationTrigger {
                     let userInfo = notification.request.content.userInfo
-                    if let msgId = userInfo["messageId"] as? String, PushedMessagingiOSLibrary.isMessageProcessed(msgId) {
-                        PushedMessagingiOSLibrary.addLog("[Delegate] Suppressing APNs UI for already processed messageId: \(msgId)")
+                    if let msgId = userInfo["messageId"] as? String, PushedMessaging.isMessageProcessed(msgId) {
+                        PushedMessaging.addLog("[Delegate] Suppressing APNs UI for already processed messageId: \(msgId)")
                         completionHandler([]) // hide UI
                         return
                     }
@@ -103,7 +103,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
         // Forward other delegate calls transparently
         func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
             // Confirm "Click" interaction for the tapped notification
-            PushedMessagingiOSLibrary.confirmMessage(response)
+            PushedMessaging.confirmMessage(response)
             
             // Forward the event to the original delegate if it implements the selector
             if let orig = original, orig.responds(to: #selector(userNotificationCenter(_:didReceive:withCompletionHandler:))) {
@@ -439,7 +439,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
                     let saveRes=saveSecToken(clientToken)
                     
                     if(pushedToken == nil && UserDefaults.standard.bool(forKey: "pushedMessaging.askPermissions")){
-                        PushedMessagingiOSLibrary.requestNotificationPermissions()
+                        PushedMessaging.requestNotificationPermissions()
                     }
                     if( saveRes) {
                         pushedToken=clientToken
@@ -507,18 +507,18 @@ public class PushedMessagingiOSLibrary: NSProxy {
         let task = session.dataTask(with: request) { data, response, error in
             if let error = error {
                 addLog("Post Request Error: \(error.localizedDescription)")
-                PushedMessagingiOSLibrary.redirectMessage(application, in: object, userInfo: userInfo, fetchCompletionHandler: completionHandler)
+                PushedMessaging.redirectMessage(application, in: object, userInfo: userInfo, fetchCompletionHandler: completionHandler)
                 return
             }
             guard let httpResponse = response as? HTTPURLResponse,
                   (200...299).contains(httpResponse.statusCode)
             else {
                 addLog("\((response as? HTTPURLResponse)?.statusCode ?? 0): Invalid Response received from the server")
-                PushedMessagingiOSLibrary.redirectMessage(application, in: object, userInfo: userInfo, fetchCompletionHandler: completionHandler)
+                PushedMessaging.redirectMessage(application, in: object, userInfo: userInfo, fetchCompletionHandler: completionHandler)
                 return
             }
             addLog("Message confirm done")
-            PushedMessagingiOSLibrary.redirectMessage(application, in: object, userInfo: userInfo, fetchCompletionHandler: completionHandler)
+            PushedMessaging.redirectMessage(application, in: object, userInfo: userInfo, fetchCompletionHandler: completionHandler)
         }
         // perform the task
         task.resume()
@@ -853,7 +853,7 @@ public class PushedMessagingiOSLibrary: NSProxy {
     
     /// Clean up resources and observers
     public static func cleanup() {
-        addLog("Cleaning up PushedMessagingiOSLibrary resources")
+        addLog("Cleaning up PushedMessaging resources")
         
         // Stop services
         if #available(iOS 13.0, *) {
@@ -881,21 +881,21 @@ public class PushedMessagingiOSLibrary: NSProxy {
   
     @objc
     private func isPushedInited(didRecievePushedClientToken pushedToken: String) {
-        PushedMessagingiOSLibrary.addLog("Pushed token")
+        PushedMessaging.addLog("Pushed token")
     }
     
     // MARK: - Proxy methods for AppDelegate
     
     @objc
     dynamic func proxyApplication(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        PushedMessagingiOSLibrary.addLog("Proxy: APNS token received")
+        PushedMessaging.addLog("Proxy: APNS token received")
         // Handle token through APNS service
-        PushedMessagingiOSLibrary.apnsService?.handleDeviceToken(deviceToken)
+        PushedMessaging.apnsService?.handleDeviceToken(deviceToken)
         
         // Call original implementation if exists
         let methodSelector = #selector(UIApplicationDelegate.application(_:didRegisterForRemoteNotificationsWithDeviceToken:))
         guard let method = class_getInstanceMethod(type(of: self), methodSelector) else {
-            PushedMessagingiOSLibrary.addLog("No original implementation for didRegisterForRemoteNotificationsWithDeviceToken method. Skipping...")
+            PushedMessaging.addLog("No original implementation for didRegisterForRemoteNotificationsWithDeviceToken method. Skipping...")
             return
         }
         let implementationPointer = NSValue(pointer: UnsafePointer(method_getImplementation(method)))
@@ -905,19 +905,19 @@ public class PushedMessagingiOSLibrary: NSProxy {
     
     @objc
     dynamic func proxyApplication(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
-        PushedMessagingiOSLibrary.addLog("Proxy: Remote notification received")
+        PushedMessaging.addLog("Proxy: Remote notification received")
         // Handle notification through APNS service
-        PushedMessagingiOSLibrary.apnsService?.handleRemoteNotification(application, userInfo: userInfo, fetchCompletionHandler: completionHandler)
+        PushedMessaging.apnsService?.handleRemoteNotification(application, userInfo: userInfo, fetchCompletionHandler: completionHandler)
     }
 
     // Intercept Background Fetch and opportunistically (re)connect WebSocket
     @objc
     dynamic func proxyApplication(_ application: UIApplication, performFetchWithCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
-        PushedMessagingiOSLibrary.addLog("Proxy: performFetchWithCompletionHandler invoked")
+        PushedMessaging.addLog("Proxy: performFetchWithCompletionHandler invoked")
         // Keep work minimal; attempt to ensure WebSocket is connected if enabled
         if #available(iOS 13.0, *) {
-            if UserDefaults.standard.bool(forKey: "pushedMessaging.webSocketEnabled"), let token = PushedMessagingiOSLibrary.getSecToken() ?? PushedMessagingiOSLibrary.clientToken {
-                PushedMessagingiOSLibrary.pushedService?.startConnection(with: token)
+            if UserDefaults.standard.bool(forKey: "pushedMessaging.webSocketEnabled"), let token = PushedMessaging.getSecToken() ?? PushedMessaging.clientToken {
+                PushedMessaging.pushedService?.startConnection(with: token)
             }
         }
         // Finish quickly; system penalizes long or failing fetches

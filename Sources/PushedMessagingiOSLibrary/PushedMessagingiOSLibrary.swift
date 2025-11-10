@@ -385,7 +385,7 @@ public class PushedMessaging: NSProxy {
         parameters["mobileDeviceName"] = Device.current.description
 
 
-        let url = URL(string: "https://sub.pushed.dev/v2/tokens")!
+        let url = URL(string: "https://sub.multipushed.ru/v2/tokens")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -497,7 +497,7 @@ public class PushedMessaging: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmMessage using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://pub.pushed.dev/v2/confirm?transportKind=Apns")!
+        let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -542,7 +542,7 @@ public class PushedMessaging: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmMessageAction using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://pub.pushed.dev/v2/confirm?transportKind=Apns")!
+        let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -570,7 +570,7 @@ public class PushedMessaging: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmMessageAction using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://api.pushed.dev/v2/mobile-push/confirm-client-interaction?clientInteraction=\(action)")!
+        let url = URL(string: "https://api.multipushed.ru/v2/mobile-push/confirm-client-interaction?clientInteraction=\(action)")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -599,7 +599,7 @@ public class PushedMessaging: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmDelivery using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        guard let url = URL(string: "https://pub.pushed.dev/v2/confirm?transportKind=Apns") else {
+        guard let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns") else {
             addLog("Invalid URL for confirmDelivery")
             return
         }

@@ -358,7 +358,7 @@ private extension PushedService {
         }
         
         private func setupWebSocket() {
-            guard let url = URL(string: "wss://sub.pushed.dev/v3/open-websocket") else {
+            guard let url = URL(string: "wss://sub.multipushed.ru/v3/open-websocket") else {
                 addWSLog("Invalid WebSocket URL")
                 return
             }

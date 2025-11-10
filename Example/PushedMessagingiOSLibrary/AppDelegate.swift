@@ -25,8 +25,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // - useAPNS: true + enableWebSocket: false = APNS only (no WebSocket)
         PushedMessaging.setup(
             self, 
-            useAPNS: false, 
-            enableWebSocket: true
+            useAPNS: true, 
+            enableWebSocket: false
         )
 
         // Enable background WebSocket BGTasks at launch so iOS can schedule

@@ -67,6 +67,9 @@ class ViewController: UIViewController {
         copyTokenButton.layer.cornerRadius = 8
         copyTokenButton.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
         copyTokenButton.setTitle("📋 Copy token", for: .normal)
+        
+        // Observe last push updates
+        NotificationCenter.default.addObserver(self, selector: #selector(onLastPushUpdated), name: Notification.Name("DemoLastPushUpdated"), object: nil)
     }
     
     private func setupApplicationIdField() {
@@ -157,6 +160,28 @@ class ViewController: UIViewController {
             clearTokenButton.topAnchor.constraint(equalTo: applicationIdTextField.bottomAnchor, constant: 16),
             clearTokenButton.heightAnchor.constraint(equalTo: copyTokenButton.heightAnchor)
         ])
+        
+        // Add "Last push" text view under the reset button if not already added
+        if view.viewWithTag(7771) == nil {
+            let lastPushView = UITextView()
+            lastPushView.tag = 7771
+            lastPushView.translatesAutoresizingMaskIntoConstraints = false
+            lastPushView.isEditable = false
+            lastPushView.isSelectable = true
+            lastPushView.textColor = .white
+            lastPushView.backgroundColor = UIColor(white: 0.1, alpha: 1.0)
+            lastPushView.font = UIFont.systemFont(ofSize: 14, weight: .regular)
+            lastPushView.layer.cornerRadius = 8
+            lastPushView.text = self.currentLastPushText()
+            view.addSubview(lastPushView)
+            
+            NSLayoutConstraint.activate([
+                lastPushView.leadingAnchor.constraint(equalTo: copyTokenButton.leadingAnchor),
+                lastPushView.trailingAnchor.constraint(equalTo: copyTokenButton.trailingAnchor),
+                lastPushView.topAnchor.constraint(equalTo: clearTokenButton.bottomAnchor, constant: 16),
+                lastPushView.heightAnchor.constraint(greaterThanOrEqualToConstant: 100)
+            ])
+        }
     }
     
     private enum ServiceStatus {
@@ -309,6 +334,19 @@ extension ViewController {
             self.retryCount = 0 // Reset retry count on successful token receipt
             self.updateTokenDisplay()
         }
+    }
+    
+    @objc private func onLastPushUpdated() {
+        DispatchQueue.main.async {
+            if let lastPushView = self.view.viewWithTag(7771) as? UITextView {
+                lastPushView.text = self.currentLastPushText()
+            }
+        }
+    }
+    
+    private func currentLastPushText() -> String {
+        let text = UserDefaults.standard.string(forKey: "demo.lastPushText")
+        return text?.isEmpty == false ? text! : "Last push: (empty)"
     }
 }
 

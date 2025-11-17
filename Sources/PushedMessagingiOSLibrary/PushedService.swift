@@ -493,12 +493,23 @@ private extension PushedService {
                         addWSLog("App is in background but APNs is disabled, showing WebSocket notification for message: \(messageId)")
                     }
                     PushedMessaging.markMessageProcessed(messageId)
+                // Suppress any local notifications if the app is not in background
+                let isAPNSEnabled = PushedMessagingiOSLibrary.isAPNSEnabled
+                let appState = UIApplication.shared.applicationState
+                if appState != .background {
+                    addWSLog("App is in foreground, suppressing WebSocket notification for message: \(messageId)")
+                    return
+                }
+                // Background: only show WS notification if APNs is disabled, otherwise rely on APNs
+                if !isAPNSEnabled {
+                    addWSLog("App is in background and APNs is disabled, showing WebSocket notification for message: \(messageId)")
+                    PushedMessagingiOSLibrary.markMessageProcessed(messageId)
                     showBackgroundNotification(json, identifier: messageId)
                     confirmWebSocketMessage(messageId: messageId, mfTraceId: mfTraceId)
                     lastMessageId = messageId
                     UserDefaults.standard.set(messageId, forKey: "pushedMessaging.lastMessageId")
                 } else {
-                    addWSLog("App is in background and APNs is enabled, suppressing notification from WebSocket. Waiting for APNs.")
+                    addWSLog("App is in background and APNs is enabled, suppressing WebSocket notification. Waiting for APNs.")
                 }
             }
         }

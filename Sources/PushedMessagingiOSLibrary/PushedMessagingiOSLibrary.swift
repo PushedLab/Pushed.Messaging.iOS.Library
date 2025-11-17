@@ -56,7 +56,7 @@ public class PushedMessaging: NSProxy {
         case connecting = "Connecting"
     }
     private static var pushedToken: String?
-    private static let sdkVersion = "iOS Native 1.1.1"
+    private static let sdkVersion = "iOS Native 1.1.2"
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
     
     // Services
@@ -75,6 +75,12 @@ public class PushedMessaging: NSProxy {
 
         // Suppress notifications already handled via WebSocket
         func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+            // Do not show any notification UI when the app is active (open)
+            if UIApplication.shared.applicationState == .active {
+                PushedMessagingiOSLibrary.addLog("[Delegate] App active - suppressing notification UI")
+                completionHandler([])
+                return
+            }
             // Only handle deduplication if APNS is enabled
             if PushedMessaging.apnsService?.isEnabled ?? false {
                 // Differentiate between remote (APNs) and local (WebSocket) notifications

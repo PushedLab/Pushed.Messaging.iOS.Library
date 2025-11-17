@@ -482,19 +482,8 @@ private extension PushedService {
                 lastMessageId = messageId
                 UserDefaults.standard.set(messageId, forKey: "pushedMessaging.lastMessageId")
             } else {
-                // Check if we should show notification based on app state and APNs status
-                let isAPNSEnabled = PushedMessaging.isAPNSEnabled
-                let shouldShowNotification = UIApplication.shared.applicationState != .background || !isAPNSEnabled
-                
-                if shouldShowNotification {
-                    if UIApplication.shared.applicationState != .background {
-                        addWSLog("App is active, showing local notification for message: \(messageId)")
-                    } else {
-                        addWSLog("App is in background but APNs is disabled, showing WebSocket notification for message: \(messageId)")
-                    }
-                    PushedMessaging.markMessageProcessed(messageId)
                 // Suppress any local notifications if the app is not in background
-                let isAPNSEnabled = PushedMessagingiOSLibrary.isAPNSEnabled
+                let isAPNSEnabled = PushedMessaging.isAPNSEnabled
                 let appState = UIApplication.shared.applicationState
                 if appState != .background {
                     addWSLog("App is in foreground, suppressing WebSocket notification for message: \(messageId)")
@@ -503,7 +492,7 @@ private extension PushedService {
                 // Background: only show WS notification if APNs is disabled, otherwise rely on APNs
                 if !isAPNSEnabled {
                     addWSLog("App is in background and APNs is disabled, showing WebSocket notification for message: \(messageId)")
-                    PushedMessagingiOSLibrary.markMessageProcessed(messageId)
+                    PushedMessaging.markMessageProcessed(messageId)
                     showBackgroundNotification(json, identifier: messageId)
                     confirmWebSocketMessage(messageId: messageId, mfTraceId: mfTraceId)
                     lastMessageId = messageId
@@ -576,3 +565,5 @@ private extension PushedService {
         }
     }
 }
+
+public typealias PushedMessagingiOSLibrary = PushedMessaging

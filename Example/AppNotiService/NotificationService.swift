@@ -25,7 +25,7 @@ class NotificationService: UNNotificationServiceExtension {
         // Always attempt message delivery confirmation
         if let messageId = request.content.userInfo["messageId"] as? String {
             NSLog("[Extension] Confirming message delivery with ID: \(messageId)")
-            PushedMessagingiOSLibrary.confirmDelivery(messageId: messageId)
+            PushedMessaging.confirmDelivery(messageId: messageId)
         } else {
             NSLog("[Extension] No messageId found – cannot confirm delivery")
         }
@@ -70,6 +70,6 @@ class NotificationService: UNNotificationServiceExtension {
     }*/
 
     private func confirmMessage(messageId: String) {
-        PushedMessagingiOSLibrary.confirmDelivery(messageId: messageId)
+        PushedMessaging.confirmDelivery(messageId: messageId)
     }
 } 

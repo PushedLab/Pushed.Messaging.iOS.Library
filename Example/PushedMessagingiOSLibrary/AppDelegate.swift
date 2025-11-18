@@ -16,24 +16,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         
         // Set to true if you have Notification Service Extension that handles message confirmation
         // This prevents duplicate confirmation from main app
-        PushedMessagingiOSLibrary.extensionHandlesConfirmation = true
+        PushedMessaging.extensionHandlesConfirmation = true
         // PushedMessagingiOSLibrary.clearTokenForTesting()
         // Setup Pushed Library
         // Change these flags to test different modes:
         // - useAPNS: true + enableWebSocket: true = Both APNS and WebSocket
         // - useAPNS: false + enableWebSocket: true = WebSocket only (no APNS)
         // - useAPNS: true + enableWebSocket: false = APNS only (no WebSocket)
-        PushedMessagingiOSLibrary.setup(
-            self, 
+        PushedMessaging.setup(
+            self,
             useAPNS: true, 
             enableWebSocket: true
         )
-
+    
         // Enable background WebSocket BGTasks at launch so iOS can schedule
         print("[Example] Enabling background WebSocket tasks at launch")
-        PushedMessagingiOSLibrary.enableBackgroundWebSocketTasks()
+        PushedMessaging.enableBackgroundWebSocketTasks()
 
-        PushedMessagingiOSLibrary.onWebSocketMessageReceived = { messageJson in
+        PushedMessaging.onWebSocketMessageReceived = { messageJson in
             print("Received WebSocket message: \(messageJson)")
             // Save last push (id + text) for demo UI, ignore duplicates
             let (msgId, text) = Self.extractFromWebSocket(jsonString: messageJson)
@@ -48,12 +48,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     func applicationDidEnterBackground(_ application: UIApplication) {
         print("[Example] applicationDidEnterBackground – scheduling BGProcessingTask")
-        PushedMessagingiOSLibrary.enableBackgroundWebSocketTasks()
+        PushedMessaging.enableBackgroundWebSocketTasks()
         
         // Log pending tasks after 1 second to see what was scheduled
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             if #available(iOS 13.0, *) {
-                PushedMessagingiOSLibrary.logBackgroundTasksStatus()
+                PushedMessaging.logBackgroundTasksStatus()
             }
         }
     }
@@ -61,7 +61,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func applicationWillEnterForeground(_ application: UIApplication) {
         print("[Example] applicationWillEnterForeground – checking BGProcessingTask status")
         if #available(iOS 13.0, *) {
-            PushedMessagingiOSLibrary.logBackgroundTasksStatus()
+            PushedMessaging.logBackgroundTasksStatus()
         }
     }
     
@@ -107,8 +107,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         // Note: If extensionHandlesConfirmation = true, confirmation is handled by NotificationService extension
         // Otherwise, call confirmMessage here
-        if !PushedMessagingiOSLibrary.extensionHandlesConfirmation {
-            PushedMessagingiOSLibrary.confirmMessage(response)
+        if !PushedMessaging.extensionHandlesConfirmation {
+            PushedMessaging.confirmMessage(response)
         }
         completionHandler()
 
@@ -175,7 +175,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
     // Cleanup when app terminates
     func applicationWillTerminate(_ application: UIApplication) {
-        PushedMessagingiOSLibrary.cleanup()
+        PushedMessaging.cleanup()
     }
 
 }

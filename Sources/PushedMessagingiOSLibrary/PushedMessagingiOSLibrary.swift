@@ -56,7 +56,7 @@ public class PushedMessaging: NSProxy {
         case connecting = "Connecting"
     }
     private static var pushedToken: String?
-    private static let sdkVersion = "iOS Native 1.1.2"
+    private static let sdkVersion = "iOS Native 1.1.3"
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
     
     // Services

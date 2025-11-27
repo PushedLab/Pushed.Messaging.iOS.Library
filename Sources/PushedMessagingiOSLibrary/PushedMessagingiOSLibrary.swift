@@ -388,7 +388,9 @@ public class PushedMessaging: NSProxy {
         parameters["sdkVersion"] = sdkVersion
         
         // Add human-readable device name and hardware model identifier
-        parameters["mobileDeviceName"] = Device.current.description
+        parameters["mobileDeviceName"] = Device.current.description 
+
+        parameters["platform"] = "ios"
 
 
         let url = URL(string: "https://sub.multipushed.ru/v2/tokens")!

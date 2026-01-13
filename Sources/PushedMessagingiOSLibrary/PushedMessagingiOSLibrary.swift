@@ -56,7 +56,8 @@ public class PushedMessaging: NSProxy {
         case connecting = "Connecting"
     }
     private static var pushedToken: String?
-    private static let sdkVersion = "iOS Native 1.1.3"
+    private static let defaultSdkVersion = "iOS Native 1.1.4"
+    private static var sdkVersion: String = defaultSdkVersion
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
     
     // Services
@@ -642,12 +643,24 @@ public class PushedMessaging: NSProxy {
     ///             - Call `unregisterForRemoteNotifications()` to stop receiving APNS
     ///             - Allow your app to handle APNS completely independently
     ///   - enableWebSocket: Immediately enable WebSocket support (equivalent to calling `enableWebSocket()` after setup). Defaults to `false` to preserve previous behaviour.
+    ///   - sdkVersion: Custom SDK version string. If not provided, defaults to "iOS Native 1.1.3"
     public static func setup(_ appDel: UIApplicationDelegate,
                              askPermissions: Bool = true,
                              loggerEnabled: Bool = false,
                              useAPNS: Bool = true,
-                             enableWebSocket: Bool = false) {
+                             enableWebSocket: Bool = false,
+                             sdkVersion: String? = nil) {
         addLog("Start setup")
+        
+        // Set SDK version - use provided or default
+        if let customSdkVersion = sdkVersion, !customSdkVersion.isEmpty {
+            self.sdkVersion = customSdkVersion
+            addLog("Using custom SDK version: \(customSdkVersion)")
+        } else {
+            self.sdkVersion = defaultSdkVersion
+            addLog("Using default SDK version: \(defaultSdkVersion)")
+        }
+        
         UserDefaults.standard.setValue(loggerEnabled, forKey: "pushedMessaging.loggerEnabled")
         UserDefaults.standard.setValue(askPermissions, forKey: "pushedMessaging.askPermissions")
         // Enable system Background Fetch at minimum interval (app must have UIBackgroundModes: fetch)
@@ -847,6 +860,14 @@ public class PushedMessaging: NSProxy {
         apnsService?.disable()
     }
     
+    /// Refresh APNS token - invalidate current token and request a new one from Apple
+    /// This will unregister from APNS, clear the stored token, and re-register
+    /// Note: iOS may return the same token if the device state hasn't changed
+    /// The new token will automatically be sent to Pushed servers when received
+    public static func refreshAPNSToken() {
+        apnsService?.refreshAPNSToken()
+    }
+    
     /// Manually check WebSocket connection health
     @available(iOS 13.0, *)
     public static func checkWebSocketHealth() {
@@ -907,7 +928,7 @@ public class PushedMessaging: NSProxy {
             return
         }
         let implementationPointer = NSValue(pointer: UnsafePointer(method_getImplementation(method)))
-        let originalImplementation = unsafeBitCast(implementationPointer.pointerValue, to: ApplicationApnsToken.self)
+        let originalImplАementation = unsafeBitCast(implementationPointer.pointerValue, to: ApplicationApnsToken.self)
         originalImplementation(self, methodSelector, application, deviceToken)
     }
     

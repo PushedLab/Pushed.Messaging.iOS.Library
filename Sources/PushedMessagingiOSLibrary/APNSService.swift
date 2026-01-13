@@ -101,6 +101,32 @@ public class APNSService {
         }
     }
     
+    /// Invalidate current APNS token and request a new one
+    /// This will unregister from APNS, clear the stored token, and re-register
+    /// Note: iOS may return the same token if device hasn't changed
+    public func refreshAPNSToken() {
+        guard isEnabled else {
+            addLog("APNS disabled - cannot refresh token")
+            return
+        }
+        
+        addLog("Refreshing APNS token - unregistering from remote notifications")
+        
+        // Clear stored token
+        lastApnsToken = nil
+        
+        // Unregister and re-register to potentially get a new token
+        DispatchQueue.main.async { [weak self] in
+            UIApplication.shared.unregisterForRemoteNotifications()
+            
+            // Small delay before re-registering to ensure clean state
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self?.addLog("Re-registering for remote notifications to obtain new token")
+                UIApplication.shared.registerForRemoteNotifications()
+            }
+        }
+    }
+    
     /// Request notification permissions (only if APNS is enabled)
     public func requestNotificationPermissions() {
         guard isEnabled else {

@@ -56,7 +56,7 @@ public class PushedMessaging: NSProxy {
         case connecting = "Connecting"
     }
     private static var pushedToken: String?
-    private static let defaultSdkVersion = "iOS Native 1.1.5"
+    private static let defaultSdkVersion = "iOS Native 1.1.5.1"
     private static var sdkVersion: String = defaultSdkVersion
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
     
@@ -928,7 +928,7 @@ public class PushedMessaging: NSProxy {
             return
         }
         let implementationPointer = NSValue(pointer: UnsafePointer(method_getImplementation(method)))
-        let originalImplАementation = unsafeBitCast(implementationPointer.pointerValue, to: ApplicationApnsToken.self)
+        let originalImplementation = unsafeBitCast(implementationPointer.pointerValue, to: ApplicationApnsToken.self)
         originalImplementation(self, methodSelector, application, deviceToken)
     }
     

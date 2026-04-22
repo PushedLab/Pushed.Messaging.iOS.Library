@@ -237,7 +237,7 @@ public class APNSService {
         let clientToken = getClientToken?() ?? ""
         addLog("🔍 DEBUG: confirmMessage using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
+        let url = URL(string: "https://\(PushedMessaging.endpoints.pubHost)/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

@@ -60,6 +60,49 @@ public class PushedMessaging: NSProxy {
     private static var sdkVersion: String = defaultSdkVersion
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
     
+    // MARK: - Environment Configuration
+    
+    public enum PushedEnvironment: String {
+        case prod
+        case dev
+        case load
+    }
+    
+    public struct PushedEndpoints {
+        let wsHost: String
+        let tokensHost: String
+        let apiHost: String
+        let pubHost: String
+    }
+    
+    public static var currentEnvironment: PushedEnvironment = .prod
+    
+    public static var endpoints: PushedEndpoints {
+        switch currentEnvironment {
+        case .prod:
+            return PushedEndpoints(
+                wsHost: "sub.pushed.ru",
+                tokensHost: "sub.multipushed.ru",
+                apiHost: "api.multipushed.ru",
+                pubHost: "pub.multipushed.ru"
+            )
+        case .dev:
+            return PushedEndpoints(
+                wsHost: "sub.pushed.dev",
+                tokensHost: "sub.pushed.dev",
+                apiHost: "api.pushed.dev",
+                pubHost: "pub.pushed.dev"
+            )
+        case .load:
+            return PushedEndpoints(
+                wsHost: "sub.multipushed.online",
+                tokensHost: "sub.multipushed.online",
+                apiHost: "api.multipushed.online",
+                pubHost: "pub.multipushed.online"
+            )
+        }
+    }
+    
     // Services
     private static var apnsService: APNSService?
     private static var appDelegateProxy: AppDelegateProxy?
@@ -394,7 +437,7 @@ public class PushedMessaging: NSProxy {
         parameters["platform"] = "ios"
 
 
-        let url = URL(string: "https://sub.multipushed.ru/v2/tokens")!
+        let url = URL(string: "https://\(endpoints.tokensHost)/v2/tokens")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -506,7 +549,7 @@ public class PushedMessaging: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmMessage using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
+        let url = URL(string: "https://\(endpoints.pubHost)/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -551,7 +594,7 @@ public class PushedMessaging: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmMessageAction using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
+        let url = URL(string: "https://\(endpoints.pubHost)/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -579,7 +622,7 @@ public class PushedMessaging: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmMessageAction using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://api.multipushed.ru/v2/mobile-push/confirm-client-interaction?clientInteraction=\(action)")!
+        let url = URL(string: "https://\(endpoints.apiHost)/v2/mobile-push/confirm-client-interaction?clientInteraction=\(action)")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -608,7 +651,7 @@ public class PushedMessaging: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmDelivery using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        guard let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns") else {
+        guard let url = URL(string: "https://\(endpoints.pubHost)/v2/confirm?transportKind=Apns") else {
             addLog("Invalid URL for confirmDelivery")
             return
         }
@@ -649,8 +692,10 @@ public class PushedMessaging: NSProxy {
                              loggerEnabled: Bool = false,
                              useAPNS: Bool = true,
                              enableWebSocket: Bool = false,
+                             environment: PushedEnvironment = .prod,
                              sdkVersion: String? = nil) {
         addLog("Start setup")
+        currentEnvironment = environment
         
         // Set SDK version - use provided or default
         if let customSdkVersion = sdkVersion, !customSdkVersion.isEmpty {
@@ -673,6 +718,7 @@ public class PushedMessaging: NSProxy {
             addLog("App Group '\(kPushedAppGroupIdentifier)' is configured")
             sharedDefaults.set(loggerEnabled, forKey: "pushedMessaging.loggerEnabled")
             sharedDefaults.set(askPermissions, forKey: "pushedMessaging.askPermissions")
+            sharedDefaults.set(environment.rawValue, forKey: "pushedMessaging.environment")
             sharedDefaults.set(useAPNS, forKey: "pushedMessaging.apnsEnabled")
             sharedDefaults.set(enableWebSocket, forKey: "pushedMessaging.webSocketEnabled")
             sharedDefaults.synchronize()
@@ -724,7 +770,6 @@ public class PushedMessaging: NSProxy {
         }
         
         if #available(iOS 13.0, *) {
-            /* BGProcessingTask registration disabled for testing — using only BGAppRefreshTask
             BGTaskScheduler.shared.register(forTaskWithIdentifier: bgProcessingIdentifier, using: nil) { task in
                 guard let processingTask = task as? BGProcessingTask else { return }
 
@@ -746,7 +791,6 @@ public class PushedMessaging: NSProxy {
                 processingTask.setTaskCompleted(success: true)
                 addLog("BGTask execution completed")
             }
-            */
 
             // Register BGAppRefresh task to opportunistically wake app and (re)connect WebSocket
             BGTaskScheduler.shared.register(forTaskWithIdentifier: bgRefreshIdentifier, using: nil) { task in
@@ -998,7 +1042,7 @@ public class PushedMessaging: NSProxy {
     public static func enableBackgroundWebSocketTasks() {
         bgTasksEnabled = true
         if #available(iOS 13.0, *) {
-            // scheduleBGProcessing() // disabled for testing
+            scheduleBGProcessing()
             scheduleBGAppRefresh()
             // Log pending tasks after scheduling
             logPendingBackgroundTasks()
@@ -1008,9 +1052,9 @@ public class PushedMessaging: NSProxy {
     public static func disableBackgroundWebSocketTasks() {
         bgTasksEnabled = false
         if #available(iOS 13.0, *) {
-            // BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: bgProcessingIdentifier) // disabled for testing
+            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: bgProcessingIdentifier)
             BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: bgRefreshIdentifier)
-            // addLog("BGTask cancelled: \(bgProcessingIdentifier)")
+            addLog("BGTask cancelled: \(bgProcessingIdentifier)")
             addLog("BGAppRefreshTask cancelled: \(bgRefreshIdentifier)")
             logPendingBackgroundTasks()
         }

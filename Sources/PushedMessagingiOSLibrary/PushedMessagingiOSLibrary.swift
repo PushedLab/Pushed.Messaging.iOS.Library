@@ -56,7 +56,7 @@ public class PushedMessaging: NSProxy {
         case connecting = "Connecting"
     }
     private static var pushedToken: String?
-    private static let defaultSdkVersion = "iOS Native 1.1.5.1"
+    private static let defaultSdkVersion = "iOS Native 1.1.7"
     private static var sdkVersion: String = defaultSdkVersion
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
     
@@ -645,6 +645,36 @@ public class PushedMessaging: NSProxy {
         // perform the task
         task.resume()
 
+    }
+
+    public static func confirmWSDelivery(messageId: String, mfTraceId: String) {
+        let clientToken = clientToken ?? getSecToken() ?? ""
+        addLog("🔍 DEBUG: confirmWSDelivery using clientToken: \(clientToken.prefix(8))…")
+        let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
+        guard let url = URL(string: "https://\(endpoints.pubHost)/v2/confirm?transportKind=Websocket") else {
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Basic \(loginString)", forHTTPHeaderField: "Authorization")
+        if !mfTraceId.isEmpty {
+            request.setValue(mfTraceId, forHTTPHeaderField: "mf-trace-id")
+        }
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                addLog("confirmWSDelivery error: \(error.localizedDescription)")
+                return
+            }
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode) else {
+                addLog("confirmWSDelivery invalid response: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+                return
+            }
+            addLog("confirmWSDelivery success")
+        }
+        task.resume()
     }
 
     public static func confirmDelivery(messageId: String) {

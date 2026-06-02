@@ -488,6 +488,13 @@ private extension PushedService {
                 addWSLog("Message handled by custom handler.")
                 acknowledgeWebSocketDelivery()
             } else {
+                // ALWAYS confirm delivery via WebSocket immediately, just like Android does
+                confirmWebSocketMessage(messageId: messageId, mfTraceId: mfTraceId)
+                PushedMessaging.markMessageProcessed(messageId)
+                lastMessageId = messageId
+                UserDefaults.standard.set(messageId, forKey: "pushedMessaging.lastMessageId")
+                
+                // Suppress any local notifications if the app is not in background
                 let isAPNSEnabled = PushedMessaging.isAPNSEnabled
                 let appState = UIApplication.shared.applicationState
                 if appState != .background {
@@ -510,14 +517,14 @@ private extension PushedService {
                 confirmationDict["mfTraceId"] = mfTraceId
             }
             
-            guard let jsonData = try? JSONSerialization.data(withJSONObject: confirmationDict) else {
-                addWSLog("Failed to create confirmation JSON.")
-                return
+            if let jsonData = try? JSONSerialization.data(withJSONObject: confirmationDict) {
+                socket?.write(data: jsonData) {
+                    self.addWSLog("Confirmation sent via socket for messageId: \(messageId)")
+                }
             }
             
-            socket?.write(data: jsonData) {
-                self.addWSLog("Confirmation sent for messageId: \(messageId)")
-            }
+            // Также отправляем подтверждение через REST API, как это делает APNs
+            PushedMessaging.confirmWSDelivery(messageId: messageId, mfTraceId: mfTraceId)
         }
         
         private func showBackgroundNotification(_ messageData: [String: Any], identifier: String) {

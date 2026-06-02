@@ -56,7 +56,7 @@ public class PushedMessaging: NSProxy {
         case connecting = "Connecting"
     }
     private static var pushedToken: String?
-    private static let defaultSdkVersion = "iOS Native 1.1.5.1"
+    private static let defaultSdkVersion = "iOS Native 1.1.7"
     private static var sdkVersion: String = defaultSdkVersion
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
     
@@ -69,10 +69,10 @@ public class PushedMessaging: NSProxy {
     }
     
     public struct PushedEndpoints {
-        public let wsHost: String
-        public let tokensHost: String
-        public let apiHost: String
-        public let pubHost: String
+        let wsHost: String
+        let tokensHost: String
+        let apiHost: String
+        let pubHost: String
     }
     
     public static var currentEnvironment: PushedEnvironment = .prod
@@ -707,6 +707,36 @@ public class PushedMessaging: NSProxy {
 
     }
 
+    public static func confirmWSDelivery(messageId: String, mfTraceId: String) {
+        let clientToken = clientToken ?? getSecToken() ?? ""
+        addLog("🔍 DEBUG: confirmWSDelivery using clientToken: \(clientToken.prefix(8))…")
+        let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
+        guard let url = URL(string: "https://\(endpoints.pubHost)/v2/confirm?transportKind=Websocket") else {
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Basic \(loginString)", forHTTPHeaderField: "Authorization")
+        if !mfTraceId.isEmpty {
+            request.setValue(mfTraceId, forHTTPHeaderField: "mf-trace-id")
+        }
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                addLog("confirmWSDelivery error: \(error.localizedDescription)")
+                return
+            }
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode) else {
+                addLog("confirmWSDelivery invalid response: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+                return
+            }
+            addLog("confirmWSDelivery success")
+        }
+        task.resume()
+    }
+
     public static func confirmDelivery(messageId: String) {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmDelivery using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
@@ -1096,7 +1126,7 @@ public class PushedMessaging: NSProxy {
     public static func enableBackgroundWebSocketTasks() {
         bgTasksEnabled = true
         if #available(iOS 13.0, *) {
-            // scheduleBGProcessing() // disabled for testing
+            scheduleBGProcessing()
             scheduleBGAppRefresh()
             // Log pending tasks after scheduling
             logPendingBackgroundTasks()
@@ -1106,9 +1136,9 @@ public class PushedMessaging: NSProxy {
     public static func disableBackgroundWebSocketTasks() {
         bgTasksEnabled = false
         if #available(iOS 13.0, *) {
-            // BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: bgProcessingIdentifier) // disabled for testing
+            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: bgProcessingIdentifier)
             BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: bgRefreshIdentifier)
-            // addLog("BGTask cancelled: \(bgProcessingIdentifier)")
+            addLog("BGTask cancelled: \(bgProcessingIdentifier)")
             addLog("BGAppRefreshTask cancelled: \(bgRefreshIdentifier)")
             logPendingBackgroundTasks()
         }

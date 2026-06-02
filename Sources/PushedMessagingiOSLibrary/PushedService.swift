@@ -199,8 +199,10 @@ public class PushedService {
             }
         }
         
-        // Also schedule a BGProcessingTask to let iOS wake us for network work
-        PushedMessaging.enableBackgroundWebSocketTasks()
+        // Schedule BG refresh only when WebSocket mode is enabled (APNs-only apps must not register unnecessary work)
+        if isEnabled {
+            PushedMessaging.enableBackgroundWebSocketTasks()
+        }
 
         // Request ~30s extra execution so socket can stay alive a bit longer
         // This is especially important when APNs is disabled
@@ -358,7 +360,7 @@ private extension PushedService {
         }
         
         private func setupWebSocket() {
-            guard let url = URL(string: "wss://sub.multipushed.ru/v3/open-websocket") else {
+            guard let url = URL(string: "wss://\(PushedMessaging.endpoints.wsHost)/v3/open-websocket") else {
                 addWSLog("Invalid WebSocket URL")
                 return
             }
@@ -474,31 +476,30 @@ private extension PushedService {
             
             let mfTraceId = json["mfTraceId"] as? String ?? ""
             let handled = onMessageReceived?(messageString) ?? false
-            
-            if handled {
-                addWSLog("Message handled by custom handler.")
+
+            func acknowledgeWebSocketDelivery() {
                 PushedMessaging.markMessageProcessed(messageId)
                 confirmWebSocketMessage(messageId: messageId, mfTraceId: mfTraceId)
                 lastMessageId = messageId
                 UserDefaults.standard.set(messageId, forKey: "pushedMessaging.lastMessageId")
+            }
+
+            if handled {
+                addWSLog("Message handled by custom handler.")
+                acknowledgeWebSocketDelivery()
             } else {
-                // Suppress any local notifications if the app is not in background
                 let isAPNSEnabled = PushedMessaging.isAPNSEnabled
                 let appState = UIApplication.shared.applicationState
                 if appState != .background {
                     addWSLog("App is in foreground, suppressing WebSocket notification for message: \(messageId)")
-                    return
-                }
-                // Background: only show WS notification if APNs is disabled, otherwise rely on APNs
-                if !isAPNSEnabled {
+                    acknowledgeWebSocketDelivery()
+                } else if !isAPNSEnabled {
                     addWSLog("App is in background and APNs is disabled, showing WebSocket notification for message: \(messageId)")
-                    PushedMessaging.markMessageProcessed(messageId)
                     showBackgroundNotification(json, identifier: messageId)
-                    confirmWebSocketMessage(messageId: messageId, mfTraceId: mfTraceId)
-                    lastMessageId = messageId
-                    UserDefaults.standard.set(messageId, forKey: "pushedMessaging.lastMessageId")
+                    acknowledgeWebSocketDelivery()
                 } else {
                     addWSLog("App is in background and APNs is enabled, suppressing WebSocket notification. Waiting for APNs.")
+                    acknowledgeWebSocketDelivery()
                 }
             }
         }

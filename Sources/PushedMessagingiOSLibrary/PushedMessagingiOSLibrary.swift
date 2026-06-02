@@ -60,6 +60,49 @@ public class PushedMessaging: NSProxy {
     private static var sdkVersion: String = defaultSdkVersion
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
     
+    // MARK: - Environment Configuration
+    
+    public enum PushedEnvironment: String {
+        case prod
+        case dev
+        case load
+    }
+    
+    public struct PushedEndpoints {
+        public let wsHost: String
+        public let tokensHost: String
+        public let apiHost: String
+        public let pubHost: String
+    }
+    
+    public static var currentEnvironment: PushedEnvironment = .prod
+    
+    public static var endpoints: PushedEndpoints {
+        switch currentEnvironment {
+        case .prod:
+            return PushedEndpoints(
+                wsHost: "sub.pushed.ru",
+                tokensHost: "sub.multipushed.ru",
+                apiHost: "api.multipushed.ru",
+                pubHost: "pub.multipushed.ru"
+            )
+        case .dev:
+            return PushedEndpoints(
+                wsHost: "sub.pushed.dev",
+                tokensHost: "sub.pushed.dev",
+                apiHost: "api.pushed.dev",
+                pubHost: "pub.pushed.dev"
+            )
+        case .load:
+            return PushedEndpoints(
+                wsHost: "sub.multipushed.online",
+                tokensHost: "sub.multipushed.online",
+                apiHost: "api.multipushed.online",
+                pubHost: "pub.multipushed.online"
+            )
+        }
+    }
+    
     // Services
     private static var apnsService: APNSService?
     private static var appDelegateProxy: AppDelegateProxy?
@@ -76,10 +119,17 @@ public class PushedMessaging: NSProxy {
 
         // Suppress notifications already handled via WebSocket
         func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-            // Do not show any notification UI when the app is active (open)
+            // When app is active, forward to original delegate (Flutter plugin) so it can deliver data to Dart,
+            // but suppress the notification banner UI.
             if UIApplication.shared.applicationState == .active {
-                PushedMessagingiOSLibrary.addLog("[Delegate] App active - suppressing notification UI")
-                completionHandler([])
+                PushedMessagingiOSLibrary.addLog("[Delegate] App active - forwarding to original delegate, suppressing banner")
+                if let orig = original, orig.responds(to: #selector(userNotificationCenter(_:willPresent:withCompletionHandler:))) {
+                    orig.userNotificationCenter?(center, willPresent: notification, withCompletionHandler: { _ in
+                        completionHandler([])
+                    })
+                } else {
+                    completionHandler([])
+                }
                 return
             }
             // Only handle deduplication if APNS is enabled
@@ -126,6 +176,9 @@ public class PushedMessaging: NSProxy {
     private static let bgProcessingIdentifier = "ru.pushed.messaging"
     private static let bgRefreshIdentifier = "ru.pushed.messaging.refresh"
     private static var bgTasksEnabled: Bool = true
+    /// BGTaskScheduler requires handlers to be registered before `application(_:didFinishLaunchingWithOptions:)` returns.
+    /// Flutter invokes `setup()` later via the plugin, so registration must happen earlier (see `registerBackgroundTaskHandlersAtLaunch()`).
+    private static var didRegisterBackgroundTaskHandlers: Bool = false
 
     // MARK: - Message Deduplication
 
@@ -155,6 +208,9 @@ public class PushedMessaging: NSProxy {
     /// Set to true if you have a Notification Service Extension that handles message confirmation
     /// This will prevent duplicate confirmation requests from the main app
     public static var extensionHandlesConfirmation: Bool = false
+
+    /// Callback invoked when a new client token is received from the server
+    public static var onClientTokenReceived: ((String) -> Void)?
 
     /// Return current client token
     public static var clientToken: String? {
@@ -342,6 +398,24 @@ public class PushedMessaging: NSProxy {
         return token
     }
 
+    /// Flutter plugin (`FlutterPushedMessagingPlugin`) stores Dart `applicationId` here before calling `setup`.
+    /// The APNS device-token path must reuse it on `/v2/tokens`, otherwise the request omits `applicationId`
+    /// (see `refreshPushedToken` guard) and APNS may not bind to the correct Pushed application.
+    private static let pushedPluginApplicationIdUserDefaultsKey = "pushed_plugin_applicationId"
+
+    /// Resolves `applicationId` for token refresh when the call site does not receive it (e.g. APNS callback).
+    private static func resolvedPluginApplicationIdForTokenRefresh(source: String) -> String? {
+        let raw = UserDefaults.standard.string(forKey: pushedPluginApplicationIdUserDefaultsKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let id = raw, !id.isEmpty {
+            let prefix = id.prefix(8)
+            addLog("🔍 DEBUG: [applicationId fix] \(source): resolved from UserDefaults key '\(pushedPluginApplicationIdUserDefaultsKey)' prefix=\(prefix)… length=\(id.count)")
+            return id
+        }
+        addLog("🔍 DEBUG: [applicationId fix] \(source): no value for UserDefaults key '\(pushedPluginApplicationIdUserDefaultsKey)' (Flutter init may not have run yet or applicationId was omitted)")
+        return nil
+    }
+
     private static func refreshPushedToken(in object: AnyObject?, apnsToken: String?, applicationId: String? = nil){
         
         addLog("🔍 DEBUG: refreshPushedToken called with applicationId: '\(applicationId ?? "nil")'")
@@ -350,6 +424,13 @@ public class PushedMessaging: NSProxy {
         if(clientToken == nil) {
             clientToken = getSecToken()
         }
+
+        /// Token we already had before calling `/v2/tokens`. If non-empty and the server returns a different
+        /// `clientToken`, we keep this value so registration/APNS refresh does not rotate the client token.
+        let tokenSentInRequest = (clientToken ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let sentPrefix = tokenSentInRequest.isEmpty ? "(empty)" : String(tokenSentInRequest.prefix(8))
+        let hasApns = (apnsToken?.isEmpty == false)
+        addLog("🔍 [tokenDiag] /v2/tokens request: env=\(currentEnvironment.rawValue) tokensHost=\(endpoints.tokensHost) tokenSentPrefix=\(sentPrefix)… len=\(tokenSentInRequest.count) hasApnsBody=\(hasApns)")
         
         var parameters: [String: Any] = ["clientToken": clientToken ?? ""]
         
@@ -394,7 +475,9 @@ public class PushedMessaging: NSProxy {
         parameters["platform"] = "ios"
 
 
-        let url = URL(string: "https://sub.multipushed.ru/v2/tokens")!
+        let tokenUrl = "https://\(endpoints.tokensHost)/v2/tokens"
+        addLog("🔗 Token refresh URL: \(tokenUrl) (env: \(currentEnvironment.rawValue), tokensHost: \(endpoints.tokensHost))")
+        let url = URL(string: tokenUrl)!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -424,10 +507,12 @@ public class PushedMessaging: NSProxy {
                 addLog("Post Request Error: \(error.localizedDescription)")
                 return
             }
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode)
-            else {
-                addLog("Invalid Response received from the server")
+            let httpResponse = response as? HTTPURLResponse
+            let statusCode = httpResponse?.statusCode ?? -1
+            let responseBody = data.flatMap { String(data: $0, encoding: .utf8) } ?? "(no body)"
+            addLog("🔗 Token refresh response: status=\(statusCode) body=\(responseBody.prefix(500))")
+            guard (200...299).contains(statusCode) else {
+                addLog("Invalid Response received from the server (status=\(statusCode))")
                 return
             }
             guard let responseData = data else {
@@ -440,18 +525,36 @@ public class PushedMessaging: NSProxy {
                         self.addLog("Some wrong with model")
                         return
                     }
-                    guard let clientToken=model["clientToken"] as? String else{
+                    guard let serverToken = model["clientToken"] as? String else{
                         self.addLog("Some wrong with clientToken")
                         return
                     }
 
-                    let saveRes=saveSecToken(clientToken)
+                    let tokenToPersist: String
+                    let srvPrefix = String(serverToken.prefix(8))
+                    let reqPrefix = tokenSentInRequest.isEmpty ? "(empty)" : String(tokenSentInRequest.prefix(8))
+                    if !tokenSentInRequest.isEmpty, serverToken != tokenSentInRequest {
+                        addLog("🔍 [tokenDiag] response 200: serverToken prefix=\(srvPrefix)… len=\(serverToken.count) != request prefix=\(reqPrefix)… len=\(tokenSentInRequest.count) → PERSIST request token (preserve branch)")
+                        addLog("Pushed: preserving existing clientToken (server suggested rotation; keeping token sent in request, len=\(tokenSentInRequest.count))")
+                        tokenToPersist = tokenSentInRequest
+                    } else {
+                        if tokenSentInRequest.isEmpty {
+                            addLog("🔍 [tokenDiag] response 200: empty request token → PERSIST serverToken prefix=\(srvPrefix)… len=\(serverToken.count)")
+                        } else {
+                            addLog("🔍 [tokenDiag] response 200: serverToken matches request prefix=\(srvPrefix)… → PERSIST same token")
+                        }
+                        tokenToPersist = serverToken
+                    }
+                    addLog("🔍 [tokenDiag] persisted clientToken prefix=\(String(tokenToPersist.prefix(8)))… env=\(currentEnvironment.rawValue)")
+
+                    let saveRes=saveSecToken(tokenToPersist)
                     
                     if(pushedToken == nil && UserDefaults.standard.bool(forKey: "pushedMessaging.askPermissions")){
                         PushedMessaging.requestNotificationPermissions()
                     }
                     if( saveRes) {
-                        pushedToken=clientToken
+                        pushedToken=tokenToPersist
+                        PushedMessaging.onClientTokenReceived?(tokenToPersist)
                     }
                     UserDefaults.standard.set(sdkVersion, forKey: "pushedMessaging.sdkVersion")
                     UserDefaults.standard.set(operatingSystem, forKey: "pushedMessaging.operatingSystem")
@@ -470,7 +573,7 @@ public class PushedMessaging: NSProxy {
                     if UserDefaults.standard.bool(forKey: "pushedMessaging.webSocketEnabled") {
                         DispatchQueue.main.async {
                             if #available(iOS 13.0, *) {
-                                pushedService?.startConnection(with: clientToken)
+                                pushedService?.startConnection(with: tokenToPersist)
                             } else {
                                 addLog("WebSocket requires iOS 13.0 or later")
                             }
@@ -487,7 +590,7 @@ public class PushedMessaging: NSProxy {
                     }
                     let implementationPointer = NSValue(pointer: UnsafePointer(method_getImplementation(method)))
                     let originalImplementation = unsafeBitCast(implementationPointer.pointerValue, to: IsPushedInited.self)
-                    originalImplementation(object!, methodSelector, clientToken)
+                    originalImplementation(object!, methodSelector, tokenToPersist)
                 } else {
                     addLog("data maybe corrupted or in wrong format")
                     throw URLError(.badServerResponse)
@@ -506,7 +609,7 @@ public class PushedMessaging: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmMessage using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
+        let url = URL(string: "https://\(endpoints.pubHost)/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -551,7 +654,7 @@ public class PushedMessaging: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmMessageAction using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns")!
+        let url = URL(string: "https://\(endpoints.pubHost)/v2/confirm?transportKind=Apns")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -579,7 +682,7 @@ public class PushedMessaging: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmMessageAction using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        let url = URL(string: "https://api.multipushed.ru/v2/mobile-push/confirm-client-interaction?clientInteraction=\(action)")!
+        let url = URL(string: "https://\(endpoints.apiHost)/v2/mobile-push/confirm-client-interaction?clientInteraction=\(action)")!
         let session = URLSession.shared
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -608,7 +711,7 @@ public class PushedMessaging: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmDelivery using clientToken: \(clientToken.prefix(8))… (length: \(clientToken.count))")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        guard let url = URL(string: "https://pub.multipushed.ru/v2/confirm?transportKind=Apns") else {
+        guard let url = URL(string: "https://\(endpoints.pubHost)/v2/confirm?transportKind=Apns") else {
             addLog("Invalid URL for confirmDelivery")
             return
         }
@@ -649,8 +752,10 @@ public class PushedMessaging: NSProxy {
                              loggerEnabled: Bool = false,
                              useAPNS: Bool = true,
                              enableWebSocket: Bool = false,
+                             environment: PushedEnvironment = .prod,
                              sdkVersion: String? = nil) {
         addLog("Start setup")
+        currentEnvironment = environment
         
         // Set SDK version - use provided or default
         if let customSdkVersion = sdkVersion, !customSdkVersion.isEmpty {
@@ -673,6 +778,7 @@ public class PushedMessaging: NSProxy {
             addLog("App Group '\(kPushedAppGroupIdentifier)' is configured")
             sharedDefaults.set(loggerEnabled, forKey: "pushedMessaging.loggerEnabled")
             sharedDefaults.set(askPermissions, forKey: "pushedMessaging.askPermissions")
+            sharedDefaults.set(environment.rawValue, forKey: "pushedMessaging.environment")
             sharedDefaults.set(useAPNS, forKey: "pushedMessaging.apnsEnabled")
             sharedDefaults.set(enableWebSocket, forKey: "pushedMessaging.webSocketEnabled")
             sharedDefaults.synchronize()
@@ -700,7 +806,9 @@ public class PushedMessaging: NSProxy {
         
         // Setup APNS callbacks
         apnsService?.onTokenReceived = { token in
-            refreshPushedToken(in: appDel, apnsToken: token, applicationId: nil)
+            let appId = resolvedPluginApplicationIdForTokenRefresh(source: "APNS.onTokenReceived")
+            addLog("🔍 DEBUG: [applicationId fix] APNS.onTokenReceived -> refreshPushedToken willUseApplicationId=\(appId != nil)")
+            refreshPushedToken(in: appDel, apnsToken: token, applicationId: appId)
         }
         
         apnsService?.onNotificationReceived = { application, userInfo, completionHandler in
@@ -722,57 +830,11 @@ public class PushedMessaging: NSProxy {
         apnsService?.isMessageProcessed = { messageId in
             return isMessageProcessed(messageId)
         }
-        
+
         if #available(iOS 13.0, *) {
-            /* BGProcessingTask registration disabled for testing — using only BGAppRefreshTask
-            BGTaskScheduler.shared.register(forTaskWithIdentifier: bgProcessingIdentifier, using: nil) { task in
-                guard let processingTask = task as? BGProcessingTask else { return }
-
-                addLog("BGTask execution started")
-
-                // Stop the socket gracefully if iOS terminates the task early
-                processingTask.expirationHandler = {
-                    addLog("BGTask expiration handler invoked - stopping WebSocket connection")
-                    pushedService?.stopConnection()
-                }
-
-                if let token = getSecToken() ?? pushedToken {
-                    pushedService?.startConnection(with: token)
-                }
-                // Keep the job short; iOS prefers quick tasks. Mark complete and reschedule.
-                if bgTasksEnabled {
-                    scheduleBGProcessing()
-                }
-                processingTask.setTaskCompleted(success: true)
-                addLog("BGTask execution completed")
+            if !didRegisterBackgroundTaskHandlers {
+                addLog("BGTask handlers not registered yet — call PushedMessaging.registerBackgroundTaskHandlersAtLaunch() from AppDelegate before didFinishLaunching returns")
             }
-            */
-
-            // Register BGAppRefresh task to opportunistically wake app and (re)connect WebSocket
-            BGTaskScheduler.shared.register(forTaskWithIdentifier: bgRefreshIdentifier, using: nil) { task in
-                guard let refreshTask = task as? BGAppRefreshTask else { return }
-
-                addLog("BGAppRefreshTask execution started")
-
-                refreshTask.expirationHandler = {
-                    addLog("BGAppRefreshTask expiration handler invoked - stopping WebSocket connection")
-                    pushedService?.stopConnection()
-                }
-
-                if let token = getSecToken() ?? pushedToken {
-                    pushedService?.startConnection(with: token)
-                }
-
-                // Keep it short and reschedule for future
-                if bgTasksEnabled {
-                    scheduleBGAppRefresh()
-                }
-                refreshTask.setTaskCompleted(success: true)
-                addLog("BGAppRefreshTask execution completed")
-            }
-
-        } else {
-            // Fallback on earlier versions
         }
         
         pushedToken = nil
@@ -788,7 +850,9 @@ public class PushedMessaging: NSProxy {
             apnsService?.disable()
             addLog("APNS integration disabled - skipping delegate proxy & APNS registration")
             // WebSocket-only mode – запрашиваем токен сразу
-            refreshPushedToken(in: appDel, apnsToken: nil, applicationId: nil)
+            let appIdWs = resolvedPluginApplicationIdForTokenRefresh(source: "WebSocketOnly.bootstrap")
+            addLog("🔍 DEBUG: [applicationId fix] WebSocketOnly.bootstrap -> refreshPushedToken willUseApplicationId=\(appIdWs != nil)")
+            refreshPushedToken(in: appDel, apnsToken: nil, applicationId: appIdWs)
         }
         
         // Install UNUserNotificationCenter delegate proxy for deduplication
@@ -808,9 +872,43 @@ public class PushedMessaging: NSProxy {
             }
         }
     }
-    
 
-    
+    /// Registers `BGAppRefreshTask` with `BGTaskScheduler`. Call once from `application(_:didFinishLaunchingWithOptions:)`
+    /// **before that method returns**. Flutter defers `setup()` until after launch, so the host app must call this early
+    /// (the Flutter plugin exposes `FlutterPushedMessagingPlugin.registerBackgroundTasksAtLaunch()`).
+    @available(iOS 13.0, *)
+    public static func registerBackgroundTaskHandlersAtLaunch() {
+        guard !didRegisterBackgroundTaskHandlers else { return }
+        didRegisterBackgroundTaskHandlers = true
+
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: bgRefreshIdentifier, using: nil) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else { return }
+
+            addLog("BGAppRefreshTask execution started")
+
+            refreshTask.expirationHandler = {
+                addLog("BGAppRefreshTask expiration handler invoked - stopping WebSocket connection")
+                pushedService?.stopConnection()
+            }
+
+            guard UserDefaults.standard.bool(forKey: "pushedMessaging.webSocketEnabled") else {
+                addLog("BGAppRefreshTask skipped — WebSocket disabled")
+                refreshTask.setTaskCompleted(success: true)
+                return
+            }
+
+            if let token = getSecToken() ?? pushedToken {
+                pushedService?.startConnection(with: token)
+            }
+
+            if bgTasksEnabled {
+                scheduleBGAppRefresh()
+            }
+            refreshTask.setTaskCompleted(success: true)
+            addLog("BGAppRefreshTask execution completed")
+        }
+    }
+
     /// Start WebSocket connection for real-time push messages
     @available(iOS 13.0, *)
     public static func startWebSocketConnection() {

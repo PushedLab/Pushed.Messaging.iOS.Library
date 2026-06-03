@@ -56,7 +56,7 @@ public class PushedMessaging: NSProxy {
         case connecting = "Connecting"
     }
     private static var pushedToken: String?
-    private static let defaultSdkVersion = "iOS Native 1.1.7"
+    private static let defaultSdkVersion = "iOS Native 1.1.8"
     private static var sdkVersion: String = defaultSdkVersion
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
     
@@ -69,10 +69,10 @@ public class PushedMessaging: NSProxy {
     }
     
     public struct PushedEndpoints {
-        let wsHost: String
-        let tokensHost: String
-        let apiHost: String
-        let pubHost: String
+        public let wsHost: String
+        public let tokensHost: String
+        public let apiHost: String
+        public let pubHost: String
     }
     
     public static var currentEnvironment: PushedEnvironment = .prod
@@ -119,16 +119,30 @@ public class PushedMessaging: NSProxy {
 
         // Suppress notifications already handled via WebSocket
         func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-            // When app is active, forward to original delegate (Flutter plugin) so it can deliver data to Dart,
-            // but suppress the notification banner UI.
+            let isRemotePush = notification.request.trigger is UNPushNotificationTrigger
+
+            // Active + remote APNs: forward to host (e.g. Flutter) but suppress banner UI.
+            // Active + local notification (WebSocket / host-scheduled): respect host delegate options.
             if UIApplication.shared.applicationState == .active {
-                PushedMessagingiOSLibrary.addLog("[Delegate] App active - forwarding to original delegate, suppressing banner")
-                if let orig = original, orig.responds(to: #selector(userNotificationCenter(_:willPresent:withCompletionHandler:))) {
-                    orig.userNotificationCenter?(center, willPresent: notification, withCompletionHandler: { _ in
+                if isRemotePush {
+                    PushedMessagingiOSLibrary.addLog("[Delegate] App active - forwarding remote push to original delegate, suppressing banner")
+                    if let orig = original, orig.responds(to: #selector(userNotificationCenter(_:willPresent:withCompletionHandler:))) {
+                        orig.userNotificationCenter?(center, willPresent: notification, withCompletionHandler: { _ in
+                            completionHandler([])
+                        })
+                    } else {
                         completionHandler([])
-                    })
+                    }
+                    return
+                }
+
+                PushedMessagingiOSLibrary.addLog("[Delegate] App active - forwarding local notification to original delegate")
+                if let orig = original, orig.responds(to: #selector(userNotificationCenter(_:willPresent:withCompletionHandler:))) {
+                    orig.userNotificationCenter?(center, willPresent: notification, withCompletionHandler: completionHandler)
+                } else if #available(iOS 14.0, *) {
+                    completionHandler([.banner, .badge, .sound])
                 } else {
-                    completionHandler([])
+                    completionHandler([.alert, .badge, .sound])
                 }
                 return
             }
@@ -910,6 +924,33 @@ public class PushedMessaging: NSProxy {
     public static func registerBackgroundTaskHandlersAtLaunch() {
         guard !didRegisterBackgroundTaskHandlers else { return }
         didRegisterBackgroundTaskHandlers = true
+
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: bgProcessingIdentifier, using: nil) { task in
+            guard let processingTask = task as? BGProcessingTask else { return }
+
+            addLog("BGProcessingTask execution started")
+
+            processingTask.expirationHandler = {
+                addLog("BGProcessingTask expiration handler invoked - stopping WebSocket connection")
+                pushedService?.stopConnection()
+            }
+
+            guard UserDefaults.standard.bool(forKey: "pushedMessaging.webSocketEnabled") else {
+                addLog("BGProcessingTask skipped — WebSocket disabled")
+                processingTask.setTaskCompleted(success: true)
+                return
+            }
+
+            if let token = getSecToken() ?? pushedToken {
+                pushedService?.startConnection(with: token)
+            }
+
+            if bgTasksEnabled {
+                scheduleBGProcessing()
+            }
+            processingTask.setTaskCompleted(success: true)
+            addLog("BGProcessingTask execution completed")
+        }
 
         BGTaskScheduler.shared.register(forTaskWithIdentifier: bgRefreshIdentifier, using: nil) { task in
             guard let refreshTask = task as? BGAppRefreshTask else { return }

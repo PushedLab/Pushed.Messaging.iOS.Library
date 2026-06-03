@@ -502,7 +502,7 @@ private extension PushedService {
                     acknowledgeWebSocketDelivery()
                 } else if !isAPNSEnabled {
                     addWSLog("App is in background and APNs is disabled, showing WebSocket notification for message: \(messageId)")
-                    showBackgroundNotification(json, identifier: messageId)
+                    // showBackgroundNotification(json, identifier: messageId)
                     acknowledgeWebSocketDelivery()
                 } else {
                     addWSLog("App is in background and APNs is enabled, suppressing WebSocket notification. Waiting for APNs.")

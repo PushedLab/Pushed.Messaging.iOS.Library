@@ -125,13 +125,13 @@ public class PushedMessaging: NSProxy {
             // Active + local notification (WebSocket / host-scheduled): respect host delegate options.
             if UIApplication.shared.applicationState == .active {
                 if isRemotePush {
-                    PushedMessagingiOSLibrary.addLog("[Delegate] App active - forwarding remote push to original delegate, suppressing banner")
+                    PushedMessagingiOSLibrary.addLog("[Delegate] App active - forwarding remote push to original delegate")
                     if let orig = original, orig.responds(to: #selector(userNotificationCenter(_:willPresent:withCompletionHandler:))) {
-                        orig.userNotificationCenter?(center, willPresent: notification, withCompletionHandler: { _ in
-                            completionHandler([])
+                        orig.userNotificationCenter?(center, willPresent: notification, withCompletionHandler: { options in
+                            completionHandler(options)
                         })
                     } else {
-                        completionHandler([])
+                        completionHandler([.alert, .badge, .sound])
                     }
                     return
                 }
@@ -140,7 +140,7 @@ public class PushedMessaging: NSProxy {
                 if let orig = original, orig.responds(to: #selector(userNotificationCenter(_:willPresent:withCompletionHandler:))) {
                     orig.userNotificationCenter?(center, willPresent: notification, withCompletionHandler: completionHandler)
                 } else if #available(iOS 14.0, *) {
-                    completionHandler([.banner, .badge, .sound])
+                    completionHandler([.list, .banner, .badge, .sound])
                 } else {
                     completionHandler([.alert, .badge, .sound])
                 }

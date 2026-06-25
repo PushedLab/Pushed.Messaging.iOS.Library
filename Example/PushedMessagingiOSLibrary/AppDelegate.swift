@@ -20,6 +20,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // Set to true if you have Notification Service Extension that handles message confirmation
         // This prevents duplicate confirmation from main app
         PushedMessaging.extensionHandlesConfirmation = true
+        // Show APNs notifications when app is active (for testing)
+        PushedMessagingiOSLibrary.showAPNSWhenActive = true
         // PushedMessagingiOSLibrary.clearTokenForTesting()
         // Setup Pushed Library
         // Change these flags to test different modes:
@@ -28,7 +30,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // - useAPNS: true + enableWebSocket: false = APNS only (no WebSocket)
         PushedMessaging.setup(
             self,
-            useAPNS: false, 
+            useAPNS: true, 
             enableWebSocket: true
         )
     
@@ -38,12 +40,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         PushedMessaging.onWebSocketMessageReceived = { messageJson in
             print("Received WebSocket message: \(messageJson)")
-            // Save last push (id + text) for demo UI, ignore duplicates
             let (msgId, text) = Self.extractFromWebSocket(jsonString: messageJson)
             Self.storeLastPush(messageId: msgId, text: text)
-            // Return false to let the library handle it exactly like APNS messages
-            // UI presentation in foreground is suppressed by the library
-            return false
+
+            guard let data = messageJson.data(using: .utf8),
+                  let object = try? JSONSerialization.jsonObject(with: data),
+                  let json = object as? [String: Any],
+                  let messageId = json["messageId"] as? String else {
+                return true
+            }
+
+            // Library no longer shows WebSocket notifications — Example handles it in foreground and background.
+            Self.showWebSocketNotification(json, identifier: messageId)
+            return true
         }
         
         return true
@@ -101,20 +110,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     // It is called when you click on the push
     public func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
-        guard userInfo["aps"] != nil else {
-            completionHandler()
-            return
-        }
         print("Click push: \(userInfo)")
         print("ActionId: \(response.actionIdentifier)")
 
-        // Note: If extensionHandlesConfirmation = true, confirmation is handled by NotificationService extension
-        // Otherwise, call confirmMessage here
-        if !PushedMessaging.extensionHandlesConfirmation {
-            PushedMessaging.confirmMessage(response)
+        if userInfo["aps"] != nil {
+            if !PushedMessaging.extensionHandlesConfirmation {
+                PushedMessaging.confirmMessage(response)
+            }
+        } else if let messageId = userInfo["messageId"] as? String {
+            PushedMessaging.confirmMessageAction(messageId, action: "Click")
         }
-        completionHandler()
 
+        completionHandler()
     }
     
     // MARK: - Demo helpers for showing last push text (with dedup by messageId)
@@ -150,6 +157,48 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         return (messageId, String(describing: userInfo))
     }
     
+    private static func showWebSocketNotification(_ messageData: [String: Any], identifier: String) {
+        DispatchQueue.main.async {
+            UNUserNotificationCenter.current().getNotificationSettings { settings in
+                guard settings.authorizationStatus == .authorized else {
+                    print("WebSocket notification skipped: permission not granted")
+                    return
+                }
+
+                let content = UNMutableNotificationContent()
+
+                if let pushedNotification = messageData["pushedNotification"] as? [String: Any] {
+                    content.title = pushedNotification["Title"] as? String ?? "New Message"
+                    content.body = pushedNotification["Body"] as? String ?? "You have a new message."
+                    content.sound = UNNotificationSound.default()
+                    if let soundName = pushedNotification["Sound"] as? String, !soundName.isEmpty {
+                        content.sound = UNNotificationSound(named: soundName)
+                    }
+                } else {
+                    content.title = "New Message"
+                    if let bodyString = messageData["data"] as? String, !bodyString.isEmpty {
+                        content.body = bodyString
+                    } else {
+                        content.body = "You have a new message via WebSocket."
+                    }
+                    content.sound = UNNotificationSound.default()
+                }
+
+                content.userInfo = messageData
+
+                let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
+                UNUserNotificationCenter.current().add(request) { error in
+                    if let error = error {
+                        print("Failed to schedule WebSocket notification: \(error.localizedDescription)")
+                    } else {
+                        print("WebSocket notification scheduled: \(identifier)")
+                        PushedMessaging.confirmMessageAction(identifier, action: "Show")
+                    }
+                }
+            }
+        }
+    }
+
     private static func extractFromWebSocket(jsonString: String) -> (String?, String) {
         // Try to parse JSON and extract pushedNotification fields or data string
         if let data = jsonString.data(using: .utf8),

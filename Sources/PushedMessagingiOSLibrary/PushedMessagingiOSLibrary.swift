@@ -56,7 +56,7 @@ public class PushedMessaging: NSProxy {
         case connecting = "Connecting"
     }
     private static var pushedToken: String?
-    private static let defaultSdkVersion = "iOS Native 1.1.8"
+    private static let defaultSdkVersion = "iOS Native 1.1.9"
     private static var sdkVersion: String = defaultSdkVersion
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
     
@@ -125,13 +125,24 @@ public class PushedMessaging: NSProxy {
             // Active + local notification (WebSocket / host-scheduled): respect host delegate options.
             if UIApplication.shared.applicationState == .active {
                 if isRemotePush {
-                    PushedMessagingiOSLibrary.addLog("[Delegate] App active - forwarding remote push to original delegate")
-                    if let orig = original, orig.responds(to: #selector(userNotificationCenter(_:willPresent:withCompletionHandler:))) {
-                        orig.userNotificationCenter?(center, willPresent: notification, withCompletionHandler: { options in
-                            completionHandler(options)
-                        })
+                    if PushedMessagingiOSLibrary.showAPNSWhenActive {
+                        PushedMessagingiOSLibrary.addLog("[Delegate] App active - showAPNSWhenActive=true, forwarding remote push to original delegate")
+                        if let orig = original, orig.responds(to: #selector(userNotificationCenter(_:willPresent:withCompletionHandler:))) {
+                            orig.userNotificationCenter?(center, willPresent: notification, withCompletionHandler: { options in
+                                completionHandler(options)
+                            })
+                        } else {
+                            completionHandler([.alert, .badge, .sound])
+                        }
                     } else {
-                        completionHandler([.alert, .badge, .sound])
+                        PushedMessagingiOSLibrary.addLog("[Delegate] App active - showAPNSWhenActive=false, suppressing remote push")
+                        if let orig = original, orig.responds(to: #selector(userNotificationCenter(_:willPresent:withCompletionHandler:))) {
+                            orig.userNotificationCenter?(center, willPresent: notification, withCompletionHandler: { _ in
+                                completionHandler([])
+                            })
+                        } else {
+                            completionHandler([])
+                        }
                     }
                     return
                 }
@@ -190,6 +201,12 @@ public class PushedMessaging: NSProxy {
     private static let bgProcessingIdentifier = "ru.pushed.messaging"
     private static let bgRefreshIdentifier = "ru.pushed.messaging.refresh"
     private static var bgTasksEnabled: Bool = true
+
+    /// When `true`, APNs notifications that arrive while the app is active are shown to the user
+    /// (using options from the original delegate, or [.alert, .badge, .sound] as fallback).
+    /// When `false` (default), they are suppressed — the SDK relies on WebSocket delivery instead.
+    /// Set to `true` if your app uses APNs as the primary notification channel without WebSocket deduplication.
+    public static var showAPNSWhenActive: Bool = false
     /// BGTaskScheduler requires handlers to be registered before `application(_:didFinishLaunchingWithOptions:)` returns.
     /// Flutter invokes `setup()` later via the plugin, so registration must happen earlier (see `registerBackgroundTaskHandlersAtLaunch()`).
     private static var didRegisterBackgroundTaskHandlers: Bool = false

@@ -30,10 +30,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // - useAPNS: true + enableWebSocket: false = APNS only (no WebSocket)
         PushedMessaging.setup(
             self,
-            useAPNS: true, 
-            enableWebSocket: true
+            useAPNS: true,
+            enableWebSocket: true,
+            // Add `environment: .dev` or `.load` to point the demo at another contour
+            useVoip: true,
+            voipCallerName: "Pushed Example"
         )
-    
+
+        setupCallHandlers()
+
         // Enable background WebSocket BGTasks at launch so iOS can schedule
         print("[Example] Enabling background WebSocket tasks at launch")
         PushedMessaging.enableBackgroundWebSocketTasks()
@@ -124,6 +129,37 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         completionHandler()
     }
     
+    // MARK: - VoIP calls
+
+    private func setupCallHandlers() {
+        // The system call screen is already up at this point — nothing to draw here.
+        PushedMessaging.onIncomingCall = { call in
+            print("[Example] Incoming call: \(call.callId) from \(call.displayName)")
+            AppDelegate.storeLastCall("📞 Входящий: \(call.displayName)\ncallId: \(call.callId)\npayload: \(call.payload)")
+        }
+
+        // Where the integrator starts the SIP session using credentials from call.payload.
+        PushedMessaging.onCallAnswered = { call in
+            print("[Example] Answered: \(call.callId), payload: \(call.payload)")
+            AppDelegate.storeLastCall("✅ Принят: \(call.displayName)\ncallId: \(call.callId)\nats_host: \(call.payload["ats_host"] ?? "—")\nsip_login: \(call.payload["sip_login"] ?? "—")")
+
+            // Demo: no real SIP here, so hang up after 5 seconds to show reportCallEnded.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                PushedMessaging.reportCallEnded(call.callId)
+            }
+        }
+
+        PushedMessaging.onCallDeclined = { call in
+            print("[Example] Declined: \(call.callId)")
+            AppDelegate.storeLastCall("❌ Отклонён: \(call.displayName)\ncallId: \(call.callId)")
+        }
+    }
+
+    private static func storeLastCall(_ text: String) {
+        UserDefaults.standard.set(text, forKey: "demo.lastCallText")
+        NotificationCenter.default.post(name: Notification.Name("DemoLastCallUpdated"), object: nil)
+    }
+
     // MARK: - Demo helpers for showing last push text (with dedup by messageId)
     private static func storeLastPush(messageId: String?, text: String) {
         let defaults = UserDefaults.standard

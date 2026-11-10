@@ -56,7 +56,7 @@ public class PushedMessaging: NSProxy {
         case connecting = "Connecting"
     }
     private static var pushedToken: String?
-    private static let defaultSdkVersion = "iOS Native 1.2.2"
+    private static let defaultSdkVersion = "iOS Native 1.2.3"
     private static var sdkVersion: String = defaultSdkVersion
     private static let operatingSystem = "iOS \(UIDevice.current.systemVersion)"
     
@@ -103,11 +103,12 @@ public class PushedMessaging: NSProxy {
         }
     }
     
-    // Services
     private static var apnsService: APNSService?
     private static var appDelegateProxy: AppDelegateProxy?
     @available(iOS 13.0, *)
     private static var pushedService: PushedService?
+
+    private static var voipService: VoipService?
     // MARK: - NotificationCenter Delegate Proxy (for APNs deduplication)
 
     private class NotificationCenterProxy: NSObject, UNUserNotificationCenterDelegate {
@@ -117,9 +118,19 @@ public class PushedMessaging: NSProxy {
             self.original = original
         }
 
-        // Suppress notifications already handled via WebSocket
         func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
             let isRemotePush = notification.request.trigger is UNPushNotificationTrigger
+
+            // Deduplication has to come first: the active-state branches below return early,
+            // so a duplicate APNs copy of a message already shown via WebSocket used to slip
+            // through whenever showAPNSWhenActive was on.
+            if isRemotePush, PushedMessaging.apnsService?.isEnabled ?? false,
+               let msgId = notification.request.content.userInfo["messageId"] as? String,
+               PushedMessaging.isMessageProcessed(msgId) {
+                PushedMessaging.addLog("[Delegate] Suppressing APNs UI for already processed messageId: \(msgId)")
+                completionHandler([])
+                return
+            }
 
             // Active + remote APNs: forward to host (e.g. Flutter) but suppress banner UI.
             // Active + local notification (WebSocket / host-scheduled): respect host delegate options.
@@ -157,20 +168,6 @@ public class PushedMessaging: NSProxy {
                 }
                 return
             }
-            // Only handle deduplication if APNS is enabled
-            if PushedMessaging.apnsService?.isEnabled ?? false {
-                // Differentiate between remote (APNs) and local (WebSocket) notifications
-                if notification.request.trigger is UNPushNotificationTrigger {
-                    let userInfo = notification.request.content.userInfo
-                    if let msgId = userInfo["messageId"] as? String, PushedMessaging.isMessageProcessed(msgId) {
-                        PushedMessaging.addLog("[Delegate] Suppressing APNs UI for already processed messageId: \(msgId)")
-                        completionHandler([]) // hide UI
-                        return
-                    }
-                }
-            }
-
-            // Forward to original delegate if implemented, otherwise present normally
             if let orig = original, orig.responds(to: #selector(userNotificationCenter(_:willPresent:withCompletionHandler:))) {
                 orig.userNotificationCenter?(center, willPresent: notification, withCompletionHandler: completionHandler)
             } else {
@@ -182,12 +179,9 @@ public class PushedMessaging: NSProxy {
             }
         }
 
-        // Forward other delegate calls transparently
         func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-            // Confirm "Click" interaction for the tapped notification
             PushedMessaging.confirmMessage(response)
             
-            // Forward the event to the original delegate if it implements the selector
             if let orig = original, orig.responds(to: #selector(userNotificationCenter(_:didReceive:withCompletionHandler:))) {
                 orig.userNotificationCenter?(center, didReceive: response, withCompletionHandler: completionHandler)
             } else {
@@ -213,10 +207,8 @@ public class PushedMessaging: NSProxy {
 
     // MARK: - Message Deduplication
 
-    /// Maximum number of messageIds to keep for deduplication
     private static let maxStoredMessageIds = 1000
 
-    /// Returns true if the message with the provided `messageId` was already processed (via WebSocket or APNs)
     static func isMessageProcessed(_ messageId: String) -> Bool {
         let processed = UserDefaults.standard.array(forKey: "pushedMessaging.processedMessageIds") as? [String] ?? []
         let already = processed.contains(messageId)
@@ -224,7 +216,6 @@ public class PushedMessaging: NSProxy {
         return already
     }
 
-    /// Marks the message with the provided `messageId` as processed so duplicates wonʼt be shown later
     static func markMessageProcessed(_ messageId: String) {
         var processed = UserDefaults.standard.array(forKey: "pushedMessaging.processedMessageIds") as? [String] ?? []
         processed.append(messageId)
@@ -240,15 +231,12 @@ public class PushedMessaging: NSProxy {
     /// This will prevent duplicate confirmation requests from the main app
     public static var extensionHandlesConfirmation: Bool = false
 
-    /// Callback invoked when a new client token is received from the server
     public static var onClientTokenReceived: ((String) -> Void)?
 
-    /// Return current client token
     public static var clientToken: String? {
         return pushedToken
     }
     
-    /// Return WebSocket connection status
     public static var webSocketStatus: PushedServiceStatus {
         if #available(iOS 13.0, *) {
             return pushedService?.status ?? .disconnected
@@ -257,18 +245,52 @@ public class PushedMessaging: NSProxy {
         }
     }
     
-    /// Return APNS enabled status
     public static var isAPNSEnabled: Bool {
         return apnsService?.isEnabled ?? false
     }
-    
-    /// WebSocket status change callback
+
+    // MARK: - VoIP
+
+    public static var isVoipEnabled: Bool {
+        return voipService?.isEnabled ?? false
+    }
+
+    /// Current PushKit token. Separate from the APNS token and sent under `transportKind: ApnsVoip`.
+    public static var voipToken: String? {
+        return voipService?.lastVoipToken
+    }
+
+    /// Fired when a voip push arrives and the system call screen is already on screen.
+    public static var onIncomingCall: ((PushedCall) -> Void)?
+
+    /// Fired when the user accepts the call. Start the SIP session here.
+    public static var onCallAnswered: ((PushedCall) -> Void)?
+
+    /// Fired when the user rejects the call or it times out.
+    public static var onCallDeclined: ((PushedCall) -> Void)?
+
+    /// transportKind used when confirming voip delivery. Set to "Apns" if the backend
+    /// has not got the `ApnsVoip` value yet.
+    public static var voipConfirmTransportKind: String = "ApnsVoip"
+
+    /// Dismisses the system call screen — remote hangup, SIP failure, or app-side cancel.
+    public static func reportCallEnded(_ callId: String) {
+        voipService?.reportCallEnded(callId)
+    }
+
+    public static func enableVoip(callerName: String = "Pushed") {
+        voipService?.enable(callerName: callerName)
+    }
+
+    public static func disableVoip() {
+        voipService?.disable()
+    }
+
     public static var onWebSocketStatusChange: ((PushedServiceStatus) -> Void)?
     
     /// WebSocket message received callback - return true if message was handled
     public static var onWebSocketMessageReceived: ((String) -> Bool)?
     
-    /// Check if WebSocket functionality is available on current iOS version
     public static var isWebSocketAvailable: Bool {
         if #available(iOS 13.0, *) {
             return true
@@ -291,11 +313,9 @@ public class PushedMessaging: NSProxy {
     }
 
     /// Clear Pushed token for testing purposes
-    /// This will remove the token from Keychain
     public static func clearTokenForTesting() {
         addLog("Clearing Pushed token for testing")
         
-        // Remove from Keychain
         var query: [CFString: Any] = [kSecClass: kSecClassGenericPassword]
         query[kSecAttrAccount] = "pushed_token"
         query[kSecAttrService] = "pushed_messaging_service"
@@ -311,10 +331,8 @@ public class PushedMessaging: NSProxy {
             addLog("Failed to remove token from Keychain: \(status)")
         }
         
-        // Clear in-memory token
         pushedToken = nil
         
-        // Stop WebSocket if running
         if #available(iOS 13.0, *) {
             pushedService?.stopConnection()
         }
@@ -323,7 +341,6 @@ public class PushedMessaging: NSProxy {
     }
 
     /// Refresh Pushed token with optional applicationId
-    /// This will generate a new token with the provided applicationId
     public static func refreshTokenWithApplicationId(_ applicationId: String?) {
         addLog("🔍 DEBUG: refreshTokenWithApplicationId called with: '\(applicationId ?? "nil")'")
         addLog("🔍 DEBUG: applicationId is nil: \(applicationId == nil)")
@@ -449,8 +466,8 @@ public class PushedMessaging: NSProxy {
         return nil
     }
 
-    private static func refreshPushedToken(in object: AnyObject?, apnsToken: String?, applicationId: String? = nil){
-        
+    private static func refreshPushedToken(in object: AnyObject?, apnsToken: String?, applicationId: String? = nil, includeVoip: Bool = true){
+
         addLog("🔍 DEBUG: refreshPushedToken called with applicationId: '\(applicationId ?? "nil")'")
         
         var clientToken = pushedToken
@@ -478,20 +495,31 @@ public class PushedMessaging: NSProxy {
             addLog("🔍 DEBUG: applicationId?.isEmpty: \(applicationId?.isEmpty ?? true)")
         }
         
-        // Include deviceSettings based on APNS enabled state and token availability
+        // Include deviceSettings based on APNS/VoIP enabled state and token availability
+        var deviceSettings: [[String: Any]] = []
+
         if let apnsToken = apnsToken, apnsService?.isEnabled ?? false {
-            // APNS mode - include APNS token
-            parameters["deviceSettings"] = [["deviceToken": apnsToken, "transportKind": "Apns"]]
+            deviceSettings.append(["deviceToken": apnsToken, "transportKind": "Apns"])
             addLog("Including APNS token in deviceSettings")
+        } else if apnsService?.isEnabled ?? false {
+            addLog("APNS enabled but no token provided")
         } else {
-            // WebSocket-only mode or no APNS token - send empty deviceSettings
-            parameters["deviceSettings"] = []
-            if apnsService?.isEnabled ?? false {
-                addLog("APNS enabled but no token provided - sending empty deviceSettings")
+            addLog("APNS disabled - WebSocket-only mode")
+        }
+
+        // VoIP token lives in a separate transport slot, so it never overwrites the APNS one
+        var sentVoip = false
+        if includeVoip, voipService?.isEnabled ?? false {
+            if let voipToken = voipService?.lastVoipToken, !voipToken.isEmpty {
+                deviceSettings.append(["deviceToken": voipToken, "transportKind": "ApnsVoip"])
+                sentVoip = true
+                addLog("Including VoIP token in deviceSettings")
             } else {
-                addLog("APNS disabled - sending empty deviceSettings for WebSocket-only mode")
+                addLog("VoIP enabled but no token yet")
             }
         }
+
+        parameters["deviceSettings"] = deviceSettings
         
             parameters["operatingSystem"] = operatingSystem
 
@@ -546,6 +574,13 @@ public class PushedMessaging: NSProxy {
             addLog("🔗 Token refresh response: status=\(statusCode) body=\(responseBody.prefix(500))")
             guard (200...299).contains(statusCode) else {
                 addLog("Invalid Response received from the server (status=\(statusCode))")
+                // A transport the server does not know rejects the whole body, so the APNS
+                // registration dies with it. Retry once without the voip entry — better to
+                // lose voip than to end up with no client token and no WebSocket.
+                if statusCode == 400, sentVoip {
+                    addLog("[VoIP] Server rejected the request — retrying without the voip transport")
+                    refreshPushedToken(in: object, apnsToken: apnsToken, applicationId: applicationId, includeVoip: false)
+                }
                 return
             }
             guard let responseData = data else {
@@ -746,7 +781,9 @@ public class PushedMessaging: NSProxy {
         let clientToken = clientToken ?? getSecToken() ?? ""
         addLog("🔍 DEBUG: confirmWSDelivery using clientToken: \(clientToken.prefix(8))…")
         let loginString = String(format: "%@:%@", clientToken, messageId).data(using: String.Encoding.utf8)!.base64EncodedString()
-        guard let url = URL(string: "https://\(endpoints.pubHost)/v2/confirm?transportKind=Websocket") else {
+        // "Pushed" is the WebSocket transport in the server's TransportKind — there is no
+        // "Websocket" value, and sending one made every WS delivery confirm fail with 400.
+        guard let url = URL(string: "https://\(endpoints.pubHost)/v2/confirm?transportKind=Pushed") else {
             return
         }
         var request = URLRequest(url: url)
@@ -825,7 +862,9 @@ public class PushedMessaging: NSProxy {
                              useAPNS: Bool = true,
                              enableWebSocket: Bool = false,
                              environment: PushedEnvironment = .prod,
-                             sdkVersion: String? = nil) {
+                             sdkVersion: String? = nil,
+                             useVoip: Bool = false,
+                             voipCallerName: String = "Pushed") {
         addLog("Start setup")
         currentEnvironment = environment
         
@@ -903,6 +942,37 @@ public class PushedMessaging: NSProxy {
             return isMessageProcessed(messageId)
         }
 
+        // Setup VoIP callbacks
+        voipService = VoipService(logger: addLog)
+
+        voipService?.onTokenReceived = { _ in
+            let appId = resolvedPluginApplicationIdForTokenRefresh(source: "Voip.onTokenReceived")
+            let currentApns = (apnsService?.isEnabled ?? false) ? apnsService?.lastApnsToken : nil
+            refreshPushedToken(in: appDel, apnsToken: currentApns, applicationId: appId)
+        }
+
+        voipService?.onIncomingCall = { call in
+            onIncomingCall?(call)
+        }
+
+        voipService?.onCallAnswered = { call in
+            onCallAnswered?(call)
+        }
+
+        voipService?.onCallDeclined = { call in
+            onCallDeclined?(call)
+        }
+
+        voipService?.onMessageDelivered = { messageId in
+            markMessageProcessed(messageId)
+            confirmVoipMessage(messageId)
+        }
+
+        // Same endpoint a regular push uses — confirm-client-interaction has no transport param
+        voipService?.onInteraction = { messageId, action in
+            confirmMessageAction(messageId, action: action)
+        }
+
         if #available(iOS 13.0, *) {
             if !didRegisterBackgroundTaskHandlers {
                 addLog("BGTask handlers not registered yet — call PushedMessaging.registerBackgroundTaskHandlersAtLaunch() from AppDelegate before didFinishLaunching returns")
@@ -927,6 +997,10 @@ public class PushedMessaging: NSProxy {
             refreshPushedToken(in: appDel, apnsToken: nil, applicationId: appIdWs)
         }
         
+        if useVoip {
+            voipService?.enable(callerName: voipCallerName)
+        }
+
         // Install UNUserNotificationCenter delegate proxy for deduplication
         installNotificationCenterProxy()
 
@@ -1089,6 +1163,39 @@ public class PushedMessaging: NSProxy {
     
     public static func requestNotificationPermissions(){
         apnsService?.requestNotificationPermissions()
+    }
+
+    /// Confirms delivery of a voip push. Same endpoint as APNS, different transportKind.
+    private static func confirmVoipMessage(_ messageId: String) {
+        let token = clientToken ?? getSecToken() ?? ""
+        guard !token.isEmpty else {
+            addLog("[VoIP] Confirm skipped: no client token")
+            return
+        }
+        guard let loginData = String(format: "%@:%@", token, messageId).data(using: .utf8),
+              let url = URL(string: "https://\(endpoints.pubHost)/v2/confirm?transportKind=\(voipConfirmTransportKind)") else {
+            addLog("[VoIP] Confirm skipped: cannot build request")
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Basic \(loginData.base64EncodedString())", forHTTPHeaderField: "Authorization")
+
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            if let error = error {
+                addLog("[VoIP] Confirm error: \(error.localizedDescription)")
+                return
+            }
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+            if (200...299).contains(statusCode) {
+                addLog("[VoIP] Confirm done: \(messageId)")
+            } else {
+                addLog("[VoIP] Confirm rejected: status=\(statusCode) transportKind=\(voipConfirmTransportKind)")
+            }
+        }.resume()
     }
 
 

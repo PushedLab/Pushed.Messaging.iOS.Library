@@ -16,34 +16,28 @@ public class PushedService {
     private var webSocketClient: WebSocketClient?
     private let addLog: (String) -> Void
     
-    // Store notification observer tokens for proper cleanup
     private var backgroundObserver: NSObjectProtocol?
     private var foregroundObserver: NSObjectProtocol?
     private var activeObserver: NSObjectProtocol?
     private var resignActiveObserver: NSObjectProtocol?
     
-    // Background task management
     private var extraBgTask: UIBackgroundTaskIdentifier = .invalid
     
     // MARK: - Callbacks
     
-    /// WebSocket status change callback
     public var onStatusChange: ((PushedServiceStatus) -> Void)?
     
     /// WebSocket message received callback - return true if message was handled
     public var onMessageReceived: ((String) -> Bool)?
     
-    /// Callback to get client token
     var getClientToken: (() -> String?)?
     
     // MARK: - Computed Properties
     
-    /// Return WebSocket connection status
     public var status: PushedServiceStatus {
         return webSocketClient?.status ?? .disconnected
     }
     
-    /// Check if WebSocket is enabled
     public var isEnabled: Bool {
         return UserDefaults.standard.bool(forKey: "pushedMessaging.webSocketEnabled")
     }
@@ -70,14 +64,12 @@ public class PushedService {
         }
     }
     
-    /// Disable WebSocket connection
     public func disable() {
         addLog("WebSocket disabled")
         UserDefaults.standard.set(false, forKey: "pushedMessaging.webSocketEnabled")
         stopConnection()
     }
     
-    /// Start WebSocket connection with token
     public func startConnection(with token: String) {
         guard isEnabled else {
             addLog("Cannot start WebSocket: Service is disabled")
@@ -105,14 +97,12 @@ public class PushedService {
         webSocketClient?.connect()
     }
     
-    /// Stop WebSocket connection
     public func stopConnection() {
         addLog("Stopping WebSocket connection")
         webSocketClient?.disconnect()
         webSocketClient = nil
     }
     
-    /// Restart WebSocket connection
     public func restartConnection() {
         addLog("Restarting WebSocket connection")
         if let token = getClientToken?() {
@@ -121,13 +111,11 @@ public class PushedService {
         }
     }
     
-    /// Manually check WebSocket connection health
     public func checkConnectionHealth() {
         addLog("Checking WebSocket connection health")
         webSocketClient?.checkConnectionState()
     }
     
-    /// Get detailed WebSocket diagnostics
     public func getDiagnostics() -> String {
         var diagnostics = "=== WebSocket Diagnostics ===\n"
         diagnostics += "Timestamp: \(Date())\n"
@@ -149,7 +137,6 @@ public class PushedService {
     
     // MARK: - Application State Management
     
-    /// Setup observers for application state changes
     private func setupApplicationStateObservers() {
         backgroundObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didEnterBackgroundNotification,
@@ -188,7 +175,6 @@ public class PushedService {
         }
     }
     
-    /// Handle application entering background
     private func handleAppDidEnterBackground() {
         if isEnabled {
             let isAPNSEnabled = PushedMessaging.isAPNSEnabled
@@ -209,16 +195,13 @@ public class PushedService {
         startShortBackgroundExecution()
     }
     
-    /// Handle application entering foreground
     private func handleAppWillEnterForeground() {
         if isEnabled && getClientToken?() != nil {
-            // Restore WebSocket connection
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 if let client = self?.webSocketClient {
                     client.restoreFromBackground()
                     self?.addLog("WebSocket restored from background")
                 } else {
-                    // WebSocket was completely lost, restart it
                     if let token = self?.getClientToken?() {
                         self?.startConnection(with: token)
                         self?.addLog("WebSocket restarted after background")
@@ -234,10 +217,8 @@ public class PushedService {
         endShortBackgroundExecution()
     }
     
-    /// Handle application becoming active
     private func handleAppDidBecomeActive() {
         if isEnabled && getClientToken?() != nil {
-            // Ensure WebSocket is running when app becomes fully active
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 if self?.webSocketClient?.status != .connected {
                     self?.addLog("WebSocket not connected when app became active, restarting")
@@ -247,7 +228,6 @@ public class PushedService {
         }
     }
     
-    /// Handle application resigning active
     private func handleAppWillResignActive() {
         // App is about to become inactive (could be going to background or being interrupted)
         addLog("Application will resign active")
@@ -279,7 +259,6 @@ public class PushedService {
         }
     }
     
-    /// End previously requested background time.
     private func endShortBackgroundExecution() {
         guard extraBgTask != .invalid else { return }
         UIApplication.shared.endBackgroundTask(extraBgTask)
@@ -289,11 +268,9 @@ public class PushedService {
     
     // MARK: - Cleanup
     
-    /// Clean up resources and observers
     private func cleanup() {
         addLog("Cleaning up PushedService resources")
         
-        // Remove notification observers
         if let backgroundObserver = backgroundObserver {
             NotificationCenter.default.removeObserver(backgroundObserver)
         }
@@ -307,7 +284,6 @@ public class PushedService {
             NotificationCenter.default.removeObserver(resignActiveObserver)
         }
         
-        // Stop WebSocket
         stopConnection()
     }
 }
@@ -317,7 +293,6 @@ public class PushedService {
 @available(iOS 13.0, *)
 private extension PushedService {
     
-    /// Internal WebSocket client implementation
     class WebSocketClient: NSObject, WebSocketDelegate {
         
         private var socket: WebSocket?

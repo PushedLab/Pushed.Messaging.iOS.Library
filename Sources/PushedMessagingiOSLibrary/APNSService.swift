@@ -2,131 +2,89 @@ import Foundation
 import UIKit
 import UserNotifications
 
-/// Service responsible for handling all APNS (Apple Push Notification Service) related functionality
+/// APNS registration, token handling and delivery confirmation.
 public class APNSService {
-    
-    // MARK: - Constants
-    
-    /// App Group identifier - must match the one in PushedMessagingiOSLibrary
+
+    /// Must match the App Group configured in PushedMessagingiOSLibrary
     private let kAppGroupIdentifier = "group.ru.pushed.messaging"
-    
-    // MARK: - Properties
-    
-    /// Stores the last successfully received APNS token as hex string
+
     private(set) var lastApnsToken: String?
-    
-    /// Logging closure for service events
     private let addLog: (String) -> Void
-    
-    /// App Group identifier for sharing data with extensions
     private var appGroupIdentifier: String?
-    
-    /// Callback for when APNS token is received
+
     var onTokenReceived: ((String) -> Void)?
-    
-    /// Callback for handling remote notifications
     var onNotificationReceived: ((UIApplication, [AnyHashable: Any], @escaping (UIBackgroundFetchResult) -> Void) -> Void)?
-    
-    /// Callback to get client token for message confirmation
     var getClientToken: (() -> String?)?
-    
-    /// Callback to mark message as processed
     var markMessageAsProcessed: ((String) -> Void)?
-    
-    /// Callback to confirm message action
     var confirmMessageAction: ((String, String) -> Void)?
-    
-    /// Callback to check if message is already processed
     var isMessageProcessed: ((String) -> Bool)?
-    
-    // MARK: - Computed Properties
-    
-    /// Return APNS enabled status
+
+    /// The App Group copy is authoritative — the extension writes it too.
     public var isEnabled: Bool {
-        // First try to read from App Group if available
         if let appGroupID = appGroupIdentifier,
            let sharedDefaults = UserDefaults(suiteName: appGroupID) {
             return sharedDefaults.bool(forKey: "pushedMessaging.apnsEnabled")
         }
-        // Fallback to standard UserDefaults
         return UserDefaults.standard.bool(forKey: "pushedMessaging.apnsEnabled")
     }
-    
-    // MARK: - Initialization
-    
+
     init(logger: @escaping (String) -> Void) {
         self.addLog = logger
         self.appGroupIdentifier = kAppGroupIdentifier
     }
-    
-    // MARK: - Public Methods
-    
 
-    
-    /// Enable APNS push notifications
     public func enable() {
         addLog("APNS enabled")
         UserDefaults.standard.set(true, forKey: "pushedMessaging.apnsEnabled")
-        
-        // Also save to App Group if configured
+
         if let appGroupID = appGroupIdentifier,
            let sharedDefaults = UserDefaults(suiteName: appGroupID) {
             sharedDefaults.set(true, forKey: "pushedMessaging.apnsEnabled")
             sharedDefaults.synchronize()
             addLog("APNS enabled saved to App Group: \(appGroupID)")
         }
-        
-        // Register for remote notifications if not already registered
+
         DispatchQueue.main.async {
             UIApplication.shared.registerForRemoteNotifications()
         }
     }
-    
-    /// Disable APNS push notifications
+
     public func disable() {
         addLog("APNS disabled")
         UserDefaults.standard.set(false, forKey: "pushedMessaging.apnsEnabled")
-        
-        // Also save to App Group if configured
+
         if let appGroupID = appGroupIdentifier,
            let sharedDefaults = UserDefaults(suiteName: appGroupID) {
             sharedDefaults.set(false, forKey: "pushedMessaging.apnsEnabled")
             sharedDefaults.synchronize()
             addLog("APNS disabled saved to App Group: \(appGroupID)")
         }
-        
-        // Unregister from remote notifications
+
         DispatchQueue.main.async {
             UIApplication.shared.unregisterForRemoteNotifications()
         }
     }
-    
-    /// Invalidate current APNS token and request a new one
-    /// This will unregister from APNS, clear the stored token, and re-register
-    /// Note: iOS may return the same token if device hasn't changed
+
+    /// Unregisters and registers again. iOS often hands back the same token —
+    /// it only changes when the device state actually changed.
     public func refreshAPNSToken() {
         guard isEnabled else {
             addLog("APNS disabled - cannot refresh token")
             return
         }
-        
+
         addLog("Refreshing APNS token - unregistering from remote notifications")
-        
-        // Clear stored token
         lastApnsToken = nil
-        
-        // Unregister and re-register to potentially get a new token
+
         DispatchQueue.main.async { [weak self] in
             UIApplication.shared.unregisterForRemoteNotifications()
-            
-            // Small delay before re-registering to ensure clean state
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 self?.addLog("Re-registering for remote notifications to obtain new token")
                 UIApplication.shared.registerForRemoteNotifications()
             }
         }
     }
-    
+
     /// Request notification permissions (needed by APNS *and* by WebSocket-only mode,
     /// which shows local notifications via PushedService.showBackgroundNotification)
     public func requestNotificationPermissions() {
@@ -147,7 +105,7 @@ public class APNSService {
             if granted != alerts {
                 UserDefaults.standard.setValue(granted, forKey: "pushedMessaging.alertEnabled")
                 UserDefaults.standard.setValue(true, forKey: "pushedMessaging.alertsNeedUpdate")
-                // Trigger token refresh through callback
+                // The server stores the permission flag, so re-register once it flips
                 if let token = self?.lastApnsToken {
                     self?.onTokenReceived?(token)
                 }
@@ -156,24 +114,19 @@ public class APNSService {
         }
     }
     
-    /// Handle device token registration
     public func handleDeviceToken(_ deviceToken: Data) {
         guard isEnabled else {
             addLog("APNS disabled - ignoring device token")
             return
         }
-        
+
         addLog("APNS token received")
         addLog("APNS enabled - processing token")
-        
-        // Store token for future requests
+
         lastApnsToken = deviceToken.hexString
-        
-        // Notify about token receipt
         onTokenReceived?(deviceToken.hexString)
     }
-    
-    /// Handle remote notification
+
     public func handleRemoteNotification(_ application: UIApplication, 
                                        userInfo: [AnyHashable: Any], 
                                        fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
@@ -185,11 +138,10 @@ public class APNSService {
         
         addLog("Received push notification: \(userInfo)")
         
-        // Prevent showing duplicate notifications if the same message was already received via WebSocket
+        // Already shown via WebSocket — drop the APNs copy and clear the local one
         if let incomingMsgId = userInfo["messageId"] as? String, 
            isMessageProcessed?(incomingMsgId) ?? false {
             addLog("Duplicate message via APNs detected (messageId: \(incomingMsgId)). Skipping display and removing local WS notification.")
-            // Remove possible local notification scheduled by WebSocket with same identifier
             UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [incomingMsgId])
             UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [incomingMsgId])
             onNotificationReceived?(application, userInfo, completionHandler)
@@ -211,7 +163,6 @@ public class APNSService {
         if let messageId = userInfo["messageId"] as? String {
             addLog("Processing message with ID: \(messageId)")
             
-            // Mark message as processed to prevent duplicate display via WebSocket
             markMessageAsProcessed?(messageId)
             addLog("[Dedup] messageId \(messageId) marked as processed from APNs path")
             
@@ -229,7 +180,6 @@ public class APNSService {
         }
     }
     
-    // MARK: - Private Methods
     
     private func confirmMessage(messageId: String, 
                                application: UIApplication, 
@@ -267,7 +217,6 @@ public class APNSService {
     }
 }
 
-// MARK: - Extensions
 
 extension Data {
     var hexString: String {

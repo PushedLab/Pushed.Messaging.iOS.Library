@@ -70,6 +70,7 @@ class ViewController: UIViewController {
         
         // Observe last push updates
         NotificationCenter.default.addObserver(self, selector: #selector(onLastPushUpdated), name: Notification.Name("DemoLastPushUpdated"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(onLastCallUpdated), name: Notification.Name("DemoLastCallUpdated"), object: nil)
     }
     
     private func setupApplicationIdField() {
@@ -180,6 +181,25 @@ class ViewController: UIViewController {
                 lastPushView.trailingAnchor.constraint(equalTo: copyTokenButton.trailingAnchor),
                 lastPushView.topAnchor.constraint(equalTo: clearTokenButton.bottomAnchor, constant: 16),
                 lastPushView.heightAnchor.constraint(greaterThanOrEqualToConstant: 100)
+            ])
+
+            let voipView = UITextView()
+            voipView.tag = 7772
+            voipView.translatesAutoresizingMaskIntoConstraints = false
+            voipView.isEditable = false
+            voipView.isSelectable = true
+            voipView.textColor = .white
+            voipView.backgroundColor = UIColor(white: 0.1, alpha: 1.0)
+            voipView.font = UIFont.systemFont(ofSize: 14, weight: .regular)
+            voipView.layer.cornerRadius = 8
+            voipView.text = self.currentVoipText()
+            view.addSubview(voipView)
+
+            NSLayoutConstraint.activate([
+                voipView.leadingAnchor.constraint(equalTo: copyTokenButton.leadingAnchor),
+                voipView.trailingAnchor.constraint(equalTo: copyTokenButton.trailingAnchor),
+                voipView.topAnchor.constraint(equalTo: lastPushView.bottomAnchor, constant: 12),
+                voipView.heightAnchor.constraint(greaterThanOrEqualToConstant: 110)
             ])
         }
     }
@@ -347,6 +367,21 @@ extension ViewController {
     private func currentLastPushText() -> String {
         let text = UserDefaults.standard.string(forKey: "demo.lastPushText")
         return text?.isEmpty == false ? text! : "Last push: (empty)"
+    }
+
+    @objc private func onLastCallUpdated() {
+        DispatchQueue.main.async {
+            if let voipView = self.view.viewWithTag(7772) as? UITextView {
+                voipView.text = self.currentVoipText()
+            }
+        }
+    }
+
+    private func currentVoipText() -> String {
+        let token = PushedMessaging.voipToken ?? "(не получен)"
+        let enabled = PushedMessaging.isVoipEnabled ? "on" : "off"
+        let lastCall = UserDefaults.standard.string(forKey: "demo.lastCallText") ?? "(вызовов не было)"
+        return "VoIP [\(enabled)]\ntoken: \(token)\n\n\(lastCall)"
     }
 }
 

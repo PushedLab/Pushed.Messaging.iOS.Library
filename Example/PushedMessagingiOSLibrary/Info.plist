@@ -27,11 +27,14 @@
 	<string>38</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSVoIPUsageDescription</key>
+	<string>For recieiveng calls</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
 		<string>processing</string>
 		<string>fetch</string>
+		<string>voip</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>

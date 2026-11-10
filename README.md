@@ -19,6 +19,12 @@
 - Управление состоянием соединения (фон/активное приложение)
 - Обработка сообщений в real-time без задержек
 
+### 📞 VoIP-звонки (PushKit + CallKit)
+- Отдельный токен PushKit, транспорт `ApnsVoip`
+- Системный экран входящего вызова рисует библиотека
+- Callback'и на приём, отклонение и показ вызова
+- Выключено по умолчанию
+
 ### 🔧 Notification Service Extension
 - Автоматическое подтверждение push-уведомлений в фоне
 - Безопасное хранение токенов в Keychain
@@ -315,6 +321,102 @@ PushedMessagingiOSLibrary.onWebSocketMessageReceived = { messageJson in
     }
 }
 ```
+
+## VoIP-звонки (PushKit + CallKit)
+
+Отдельный канал для входящих звонков. Работает на собственном токене PushKit, независимом от APNS, и на сервере занимает транспорт `ApnsVoip`.
+
+Выключено по умолчанию — если VoIP не нужен, ничего делать не надо.
+
+### Включение
+
+```swift
+PushedMessagingiOSLibrary.setup(
+    self,
+    useAPNS: true,
+    enableWebSocket: true,
+    useVoip: true,
+    voipCallerName: "Домофон"     // подпись приложения на экране вызова
+)
+```
+
+Требуется в `Info.plist`:
+
+```xml
+<key>UIBackgroundModes</key>
+<array>
+    <string>voip</string>
+</array>
+```
+
+### Обработка звонка
+
+Экран входящего вызова рисует сама библиотека через CallKit — приложению показывать ничего не нужно. Своя логика подключается тремя callback'ами:
+
+```swift
+PushedMessagingiOSLibrary.onIncomingCall = { call in
+    // Вызов получен, системный экран уже на экране
+}
+
+PushedMessagingiOSLibrary.onCallAnswered = { call in
+    // Пользователь нажал «ответить» — здесь поднимается SIP-сессия
+    let host  = call.payload["ats_host"]  as? String
+    let login = call.payload["sip_login"] as? String
+}
+
+PushedMessagingiOSLibrary.onCallDeclined = { call in
+    // Отклонён пользователем или истёк таймаут
+}
+```
+
+### Объект вызова
+
+```swift
+public struct PushedCall {
+    public let callId: String                 // идентификатор вызова
+    public let displayName: String            // что показано на экране вызова
+    public let payload: [String: Any]         // данные отправителя, как есть
+}
+```
+
+`payload` библиотека не разбирает и не валидирует — что отправитель положил в пуш, то и придёт. `callId` берётся из полей `callId` / `call_id`, иначе из `messageId`. `displayName` — из `displayName` или `pushedNotification.Title`.
+
+### Завершение вызова
+
+```swift
+PushedMessagingiOSLibrary.reportCallEnded(callId)
+```
+
+Снимает системный экран вызова: отбой с другой стороны, ошибка SIP, отмена из приложения.
+
+### Остальные методы
+
+```swift
+let token = PushedMessagingiOSLibrary.voipToken        // токен PushKit
+let on    = PushedMessagingiOSLibrary.isVoipEnabled
+
+PushedMessagingiOSLibrary.enableVoip(callerName: "Домофон")
+PushedMessagingiOSLibrary.disableVoip()
+```
+
+### Отчётность
+
+Отправляется автоматически, вызывать ничего не нужно:
+
+| событие | что уходит на сервер |
+|---|---|
+| пуш доставлен | `confirm?transportKind=ApnsVoip` |
+| экран вызова показан | `clientInteraction=Show` |
+| нажата «ответить» | `clientInteraction=Click` |
+| вызов отклонён | `clientInteraction=Close` |
+
+Завершение уже принятого звонка отдельным событием не считается — `Close` уходит только если до этого не было `Click`.
+
+### Требования к серверу
+
+Для доставки voip-пушей на стороне Pushed нужен **VoIP Services Certificate** и отправка с заголовком `apns-push-type: voip` на топик `<bundle id>.voip`. Обычный push-сертификат на этот топик прав не имеет.
+
+Если контур ещё не знает значение `ApnsVoip`, регистрация токена возвращает 400. Библиотека в этом случае повторяет запрос без voip-записи — APNS и WebSocket продолжают работать, в логе остаётся `[VoIP] Server rejected the request — retrying without the voip transport`.
 
 ## API Reference
 
